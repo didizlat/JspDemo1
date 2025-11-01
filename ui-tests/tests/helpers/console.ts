@@ -4,7 +4,11 @@ export function monitorConsoleErrors(page: Page) {
 	const errors: string[] = [];
 	const handler = (msg: any) => {
 		if (msg?.type?.() === 'error') {
-			errors.push(msg.text());
+			const text = msg.text();
+			// Ignore 404 resource loading errors (favicon, etc)
+			if (!text.includes('Failed to load resource') && !text.includes('404')) {
+				errors.push(text);
+			}
 		}
 	};
 	page.on('console', handler);

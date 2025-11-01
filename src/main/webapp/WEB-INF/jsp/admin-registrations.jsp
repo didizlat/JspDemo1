@@ -1,9 +1,10 @@
 <%@ page contentType="text/html;charset=UTF-8" language="java" %>
 <%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>
-<%@ taglib uri="http://java.sun.com/jsp/jstl/fmt" prefix="fmt" %>
 <!DOCTYPE html>
 <html>
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin - Registrations</title>
     <style>
         * {
@@ -199,7 +200,7 @@
                                     </c:choose>
                                 </td>
                                 <td style="font-size: 0.85em;">
-                                    <fmt:formatDate value="${reg.registeredAt}" pattern="yyyy-MM-dd HH:mm:ss"/>
+                                    ${reg.registeredAt}
                                 </td>
                             </tr>
                         </c:forEach>
