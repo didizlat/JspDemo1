@@ -1,0 +1,19 @@
+{
+  "name": "ui-tests",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "cross-env BASE_URL=http://localhost:8080 npx playwright test",
+    "test:headed": "cross-env BASE_URL=http://localhost:8080 npx playwright test --headed",
+    "test:ui": "npx playwright test --ui",
+    "report": "npx playwright show-report"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@playwright/test": "^1.56.1",
+    "cross-env": "^10.1.0"
+  }
+}
