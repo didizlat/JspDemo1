@@ -1,13 +1,26 @@
 package com.example.demo;
 
+import com.example.demo.entity.Order;
+import com.example.demo.entity.Registration;
+import com.example.demo.repository.OrderRepository;
+import com.example.demo.repository.RegistrationRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
+import java.time.LocalDate;
+
 @Controller
 public class FormController {
+
+    @Autowired
+    private RegistrationRepository registrationRepository;
+    
+    @Autowired
+    private OrderRepository orderRepository;
 
     @GetMapping("/registration")
     public String registrationForm() {
@@ -38,9 +51,37 @@ public class FormController {
             return "registration";
         }
         
+        // Save to database
+        Registration registration = new Registration();
+        registration.setFirstName(firstName);
+        registration.setLastName(lastName);
+        registration.setEmail(email);
+        registration.setPhone(phone);
+        
+        if (birthdate != null && !birthdate.trim().isEmpty()) {
+            try {
+                registration.setBirthdate(LocalDate.parse(birthdate));
+            } catch (Exception e) {
+                // ignore invalid dates
+            }
+        }
+        
+        registration.setGender(gender);
+        registration.setCountry(country);
+        
+        if (interests != null && interests.length > 0) {
+            registration.setInterests(String.join(", ", interests));
+        }
+        
+        registration.setComments(comments);
+        registration.setNewsletter("yes".equals(newsletter));
+        
+        registrationRepository.save(registration);
+        
         // Success
         model.addAttribute("firstName", firstName);
         model.addAttribute("email", email);
+        model.addAttribute("registrationId", registration.getId());
         return "registration-success";
     }
 
@@ -85,9 +126,29 @@ public class FormController {
 
     @PostMapping("/workflow/complete")
     public String workflowComplete(@RequestParam String product, @RequestParam String quantity, Model model) {
+        // Save order to database
+        Order order = new Order();
+        order.setProduct(product);
+        order.setQuantity(Integer.parseInt(quantity));
+        orderRepository.save(order);
+        
         model.addAttribute("product", product);
         model.addAttribute("quantity", quantity);
+        model.addAttribute("orderNumber", order.getOrderNumber());
+        model.addAttribute("orderId", order.getId());
         return "workflow-complete";
+    }
+    
+    @GetMapping("/admin/registrations")
+    public String viewRegistrations(Model model) {
+        model.addAttribute("registrations", registrationRepository.findByOrderByRegisteredAtDesc());
+        return "admin-registrations";
+    }
+    
+    @GetMapping("/admin/orders")
+    public String viewOrders(Model model) {
+        model.addAttribute("orders", orderRepository.findByOrderByOrderedAtDesc());
+        return "admin-orders";
     }
 }
 

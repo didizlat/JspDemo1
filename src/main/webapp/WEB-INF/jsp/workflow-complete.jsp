@@ -120,7 +120,7 @@
         <h1>Order Complete!</h1>
         <p>Thank you for your order</p>
         
-        <div class="order-number">Order #${(int)(Math.random() * 90000) + 10000}</div>
+        <div class="order-number">Order #${orderNumber}</div>
         
         <div class="order-summary">
             <h3>Order Summary</h3>
@@ -143,8 +143,8 @@
         </p>
         
         <div class="button-group">
+            <a href="/admin/orders" style="background: #22c55e;">View All Orders</a>
             <a href="/workflow">Start New Order</a>
-            <a href="/registration">New Registration</a>
             <a href="/" class="secondary">Back to Home</a>
         </div>
     </div>

@@ -59,6 +59,12 @@
             <a href="/workflow">🛒 Multi-Step Workflow Demo</a>
             <a href="/login">🔐 Simple Login Form</a>
         </div>
+        <p style="margin-top: 30px; font-size: 0.9em;">View database records:</p>
+        <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 10px;">
+            <a href="/admin/registrations" style="background: #22c55e;">👥 View All Registrations</a>
+            <a href="/admin/orders" style="background: #22c55e;">📦 View All Orders</a>
+            <a href="/h2-console" target="_blank" style="background: #6c757d;">🗄️ H2 Database Console</a>
+        </div>
     </div>
 </body>
 </html>

@@ -91,6 +91,7 @@
         </div>
         <p>You can now explore our interactive workflow demo.</p>
         <div class="button-group">
+            <a href="/admin/registrations" style="background: #22c55e;">View All Registrations</a>
             <a href="/workflow">Try Workflow Demo</a>
             <a href="/" class="secondary">Back to Home</a>
         </div>
