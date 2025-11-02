@@ -1,0 +1,57 @@
+For all pages: 
+- Make sure that the controls look appealing and are aligned in the center of the page 
+- Every page must have a control to go back to the main page
+- All clickable buttons need to be clicked and do what they say they do and are functional
+1. First, go to the main page. 
+Description: Make sure that you see 6 tabs
+- User Registration Form 
+- Multi-Step Workflow Demo
+- Simple Login Form
+- View All Registrations
+- View All Orders
+- H2 Database Console
+Make sure that the page says 'Welcome to JSP Demo!' 
+Make sure there is no text overflow
+2. Click on 'Simple Login Form'
+3. Make sure the browser goes to a page called 'Login' or 'User Login'
+Verify that the page contains a login form with the following fields:
+- Username (text input, required)
+- Password (password input, required, should show dots/asterisks for security)
+- A 'Login' button
+- Optionally: "Remember me" checkbox
+- Optionally: "Forgot password?" link
+4. Verify that the form controls are properly aligned and centered
+Make sure the username field has a clear label (e.g., "Username" or "Email")
+Make sure the password field has a clear label (e.g., "Password")
+Make sure the form has a professional appearance
+5. Verify that password field masks the input (shows dots or asterisks)
+Type any text in the password field and confirm it's not visible as plain text
+6. Test with INVALID credentials first:
+- Username: Enter "invaliduser"
+- Password: Enter "wrongpassword"
+- Click on 'Login' button
+7. Verify that an error message appears
+The error message should indicate login failure (e.g., "Invalid username or password", "Login failed")
+The error message should be clearly visible
+The form should remain on the same page or show the error prominently
+8. Clear the form fields or refresh the page
+9. Test with VALID credentials:
+- Username: Enter "admin" (or the correct test username)
+- Password: Enter "password" (or the correct test password)
+- Click on 'Login' button
+10. Make sure the browser navigates to a success page or welcome page
+Verify that the success page shows:
+- A welcome message (e.g., "Welcome back!" or "Login Successful")
+- The username that logged in
+- Navigation options (links to home, dashboard, or other features)
+- A logout option or button
+- A link or button to 'Back to Home'
+11. Verify that all navigation links on the welcome page are functional
+Check that 'Back to Home' button works
+If there's a 'Logout' button, verify it's present and clickable
+12. Test logout functionality (if available):
+- Click on 'Logout' button (if present)
+- Verify that you are redirected back to login page or home page
+- Verify that you cannot access the welcome page without logging in again
+13. Verify that there is always a clear way to navigate back to the main page
+

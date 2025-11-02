@@ -1,0 +1,465 @@
+═══════════════════════════════════════════════════════════════════════════
+                  AI-DRIVEN WEB TESTING FRAMEWORK
+                         ARCHITECTURE DIAGRAM
+═══════════════════════════════════════════════════════════════════════════
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│                          USER INTERACTION                                │
+└────────────────────────────────┬────────────────────────────────────────┘
+                                 │
+                                 ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│  COMMAND LINE INTERFACE                                                  │
+│                                                                           │
+│  $ python run_ai_test.py \                                               │
+│      --requirements "Order Flow Requirements.txt" \                      │
+│      --provider openai \                                                 │
+│      --output-dir ./reports                                              │
+└────────────────────────────────┬────────────────────────────────────────┘
+                                 │
+                                 ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│  TEST ORCHESTRATOR                                                       │
+│  - Load configuration (YAML)                                             │
+│  - Initialize components                                                 │
+│  - Coordinate test execution                                             │
+│  - Generate final report                                                 │
+└────────┬─────────────────────┬─────────────────────┬────────────────────┘
+         │                     │                     │
+         ▼                     ▼                     ▼
+┏━━━━━━━━━━━━━━━━┓   ┏━━━━━━━━━━━━━━━━┓   ┏━━━━━━━━━━━━━━━━┓
+┃ REQUIREMENT    ┃   ┃ AI ADAPTER     ┃   ┃ TEST EXECUTOR  ┃
+┃ PARSER         ┃   ┃ (Universal)    ┃   ┃ (Playwright)   ┃
+┗━━━━━━━━━━━━━━━━┛   ┗━━━━━━━━━━━━━━━━┛   ┗━━━━━━━━━━━━━━━━┛
+
+
+═══════════════════════════════════════════════════════════════════════════
+                        COMPONENT DETAILS
+═══════════════════════════════════════════════════════════════════════════
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃  1. REQUIREMENT PARSER                                                 ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+INPUT: Test Requirement Text File
+┌──────────────────────────────────────────────────────────────┐
+│ For all pages:                                                │
+│ - Make sure controls are centered                            │
+│ - Every page must have back button                           │
+│                                                               │
+│ 1. Go to main page                                           │
+│    Make sure you see 6 tabs                                  │
+│    - User Registration Form                                  │
+│    - Multi-Step Workflow Demo                                │
+│                                                               │
+│ 2. Click on "Multi-Step Workflow Demo"                       │
+│ 3. Make sure browser goes to "Step 1: Select a Product"      │
+│    Verify products have icons, names, prices                 │
+│ 4. Select a product and click Continue                       │
+│ ...                                                           │
+└──────────────────────────────────────────────────────────────┘
+                           │
+                           │ Parse & Structure
+                           ▼
+OUTPUT: Structured Test Suite
+┌──────────────────────────────────────────────────────────────┐
+│ TestSuite:                                                    │
+│   name: "Order Flow Requirements"                            │
+│   global_requirements:                                        │
+│     - Controls centered                                       │
+│     - Back button present                                     │
+│   steps:                                                      │
+│     Step 1:                                                   │
+│       actions: [NAVIGATE("/")]                               │
+│       verifications:                                          │
+│         - "6 tabs visible"                                    │
+│         - "Welcome text present"                              │
+│     Step 2:                                                   │
+│       actions: [CLICK("Multi-Step Workflow Demo")]           │
+│       verifications:                                          │
+│         - "Page title: Step 1: Select a Product"             │
+│     ...                                                       │
+└──────────────────────────────────────────────────────────────┘
+
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃  2. AI ADAPTER (Universal Interface)                                   ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+                     ┌──────────────────┐
+                     │   AI Adapter     │
+                     │  (Abstract Base) │
+                     └────────┬─────────┘
+                              │
+          ┌───────────────────┼───────────────────┬────────────────┐
+          │                   │                   │                │
+          ▼                   ▼                   ▼                ▼
+    ┌──────────┐        ┌──────────┐        ┌──────────┐    ┌──────────┐
+    │ OpenAI   │        │  Claude  │        │  Gemini  │    │  Custom  │
+    │ Adapter  │        │ Adapter  │        │ Adapter  │    │ Adapter  │
+    └──────────┘        └──────────┘        └──────────┘    └──────────┘
+         │                   │                   │                │
+         └───────────────────┴───────────────────┴────────────────┘
+                              │
+                              ▼
+                    ┌──────────────────┐
+                    │   AI Provider    │
+                    │   (Cloud API)    │
+                    └──────────────────┘
+
+CAPABILITIES:
+┌──────────────────────────────────────────────────────────────┐
+│ analyze_page(screenshot, html, prompt)                        │
+│   → Analyzes screenshot + HTML with AI vision                │
+│   → Returns: analysis, issues, confidence                    │
+│                                                               │
+│ verify_requirement(requirement, evidence)                     │
+│   → Checks if requirement is met                             │
+│   → Returns: pass/fail, reasoning, confidence                │
+│                                                               │
+│ extract_elements(html, element_descriptions)                 │
+│   → Finds elements based on descriptions                     │
+│   → Returns: element found (yes/no), location                │
+└──────────────────────────────────────────────────────────────┘
+
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃  3. TEST EXECUTOR (Playwright + AI)                                    ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+For Each Test Step:
+
+┌──────────────────────────────────────────────────────────────┐
+│ STEP 1: CAPTURE INITIAL STATE                                │
+│                                                               │
+│  Browser → Screenshot (PNG) ──────┐                          │
+│         → HTML Content     ───────┤→ PageState               │
+│         → Console Logs     ───────┤                          │
+│         → Network Activity ───────┘                          │
+└──────────────────────────────────────────────────────────────┘
+                           │
+                           ▼
+┌──────────────────────────────────────────────────────────────┐
+│ STEP 2: EXECUTE ACTIONS                                       │
+│                                                               │
+│  Actions:                                                     │
+│    - NAVIGATE(url)     → page.goto(url)                      │
+│    - CLICK(target)     → page.click(selector)                │
+│    - TYPE(target, val) → page.fill(selector, value)          │
+│    - SELECT(opt)       → page.select_option(selector, opt)   │
+│    - CHECK(target)     → page.check(selector)                │
+└──────────────────────────────────────────────────────────────┘
+                           │
+                           ▼
+┌──────────────────────────────────────────────────────────────┐
+│ STEP 3: CAPTURE NEW STATE                                    │
+│                                                               │
+│  Browser → Screenshot (PNG) ──────┐                          │
+│         → HTML Content     ───────┤→ PageState (After)       │
+│         → Console Logs     ───────┤                          │
+│         → URL Changed?     ───────┘                          │
+└──────────────────────────────────────────────────────────────┘
+                           │
+                           ▼
+┌──────────────────────────────────────────────────────────────┐
+│ STEP 4: AI VERIFICATION                                       │
+│                                                               │
+│  For Each Verification:                                       │
+│                                                               │
+│    Requirement: "Make sure you see 6 tabs"                   │
+│    Evidence:                                                  │
+│      - Screenshot: [image data]                              │
+│      - HTML: <nav>...</nav>                                  │
+│      - URL: http://localhost:8080/                           │
+│                                                               │
+│    → Send to AI Adapter                                      │
+│    → AI analyzes screenshot + HTML                           │
+│    → AI returns:                                             │
+│        ✅ PASS                                                │
+│        Confidence: 95%                                        │
+│        Reasoning: "I can see 6 navigation tabs clearly       │
+│                    visible and properly labeled"             │
+│        Evidence: "Nav element contains 6 <a> tags"           │
+└──────────────────────────────────────────────────────────────┘
+                           │
+                           ▼
+┌──────────────────────────────────────────────────────────────┐
+│ STEP 5: RECORD RESULTS                                        │
+│                                                               │
+│  StepResult:                                                  │
+│    step_number: 1                                             │
+│    status: PASS                                               │
+│    duration: 2.3s                                             │
+│    verifications: [...]                                       │
+│    screenshot: screenshot1.png                                │
+│    issues: []                                                 │
+└──────────────────────────────────────────────────────────────┘
+
+
+═══════════════════════════════════════════════════════════════════════════
+                        EXECUTION FLOW EXAMPLE
+═══════════════════════════════════════════════════════════════════════════
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│  TEST: Order Flow Requirements                                           │
+└─────────────────────────────────────────────────────────────────────────┘
+
+Step 1: Go to main page
+├─ Action: NAVIGATE("http://localhost:8080/")
+├─ Capture: Screenshot + HTML
+├─ Verify with AI:
+│  ├─ "6 tabs visible" → ✅ PASS (95% confidence)
+│  ├─ "Welcome text present" → ✅ PASS (98% confidence)
+│  └─ "No text overflow" → ✅ PASS (92% confidence)
+└─ Result: ✅ PASS
+
+Step 2: Click Multi-Step Workflow Demo
+├─ Action: CLICK("Multi-Step Workflow Demo")
+├─ Wait: URL change
+├─ Capture: Screenshot + HTML
+├─ Verify with AI:
+│  └─ "Page title: Step 1: Select a Product" → ✅ PASS (97% confidence)
+└─ Result: ✅ PASS
+
+Step 3: Verify products displayed
+├─ Capture: Current page state
+├─ Verify with AI:
+│  ├─ "Products have icons" → ✅ PASS (96% confidence)
+│  ├─ "Products have names" → ✅ PASS (99% confidence)
+│  ├─ "Products have prices" → ✅ PASS (98% confidence)
+│  └─ "Well-aligned" → ⚠️ WARNING (85% confidence)
+│     └─ Issue: "Tablet icon slightly off-center (1px)"
+└─ Result: ⚠️ WARNING (minor cosmetic issue)
+
+Step 4: Select product and continue
+├─ Action: CLICK("laptop")
+├─ Action: CLICK("Continue")
+├─ Wait: URL change
+├─ Capture: Screenshot + HTML
+├─ Verify with AI:
+│  └─ "Page title: Step 2: Select Quantity" → ✅ PASS (98% confidence)
+└─ Result: ✅ PASS
+
+Step 5: Test quantity controls
+├─ Action: TYPE("quantity", "5")
+├─ Verify: Input value = 5
+├─ Action: CLICK("plus button")
+├─ Verify: Input value = 6
+├─ Action: CLICK("minus button")
+├─ Verify: Input value = 5
+├─ AI Verification:
+│  └─ "Quantity controls functional" → ✅ PASS (99% confidence)
+└─ Result: ✅ PASS
+
+Step 6: Continue to review
+├─ Action: CLICK("Continue to Review")
+├─ Wait: URL change
+├─ Capture: Screenshot + HTML
+├─ Extract data:
+│  ├─ Product: "Laptop"
+│  ├─ Price: $999
+│  ├─ Quantity: 5
+│  └─ Total: $4,995
+├─ AI Verification:
+│  └─ "Total = Price × Quantity" → ✅ PASS (100% confidence)
+│     └─ Calculation: 999 × 5 = 4995 ✓
+└─ Result: ✅ PASS
+
+Step 7: Complete order
+├─ Action: CLICK("Confirm and Complete Order")
+├─ Wait: URL change
+├─ Capture: Screenshot + HTML
+├─ Verify with AI:
+│  ├─ "Page title: Order Complete" → ✅ PASS (99% confidence)
+│  ├─ "Order number displayed" → ✅ PASS (97% confidence)
+│  ├─ "Product shown: Laptop" → ✅ PASS (98% confidence)
+│  ├─ "Quantity shown: 5" → ✅ PASS (99% confidence)
+│  └─ "Status displayed" → ✅ PASS (96% confidence)
+└─ Result: ✅ PASS
+
+═══════════════════════════════════════════════════════════════════════════
+FINAL RESULTS:
+  Total Steps: 7
+  Passed: 6 ✅
+  Warnings: 1 ⚠️
+  Failed: 0 ❌
+  
+  Issues:
+  - Minor: Tablet icon alignment off by 1px (cosmetic)
+  
+  VERDICT: ✅ PASS (Overall confidence: 96%)
+  
+  Reasoning: All critical functionality works correctly. Product selection,
+  quantity controls, and order calculation are accurate. One minor cosmetic
+  issue detected but does not impact functionality.
+═══════════════════════════════════════════════════════════════════════════
+
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃  4. REPORT GENERATOR                                                   ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+INPUT: TestResults Object
+┌──────────────────────────────────────────────────────────────┐
+│ TestResults:                                                  │
+│   test_name: "Order Flow Requirements"                       │
+│   start_time: 2025-11-02 14:30:00                            │
+│   end_time: 2025-11-02 14:34:32                              │
+│   duration: 4m 32s                                            │
+│   steps: [StepResult1, StepResult2, ...]                     │
+│   issues: [Issue1, Issue2, ...]                              │
+└──────────────────────────────────────────────────────────────┘
+                           │
+                           │ Process & Format
+                           ▼
+PROCESSING:
+┌──────────────────────────────────────────────────────────────┐
+│ 1. Categorize Issues                                          │
+│    Critical: Block functionality                             │
+│    Major: Impact user experience                             │
+│    Minor: Cosmetic/UX improvements                           │
+│                                                               │
+│ 2. Calculate Verdict                                          │
+│    Rules:                                                     │
+│    - FAIL if critical issues > 0                             │
+│    - FAIL if major issues > 5                                │
+│    - WARNING if major issues 2-5                             │
+│    - PASS if no critical, <2 major, <5 minor                 │
+│                                                               │
+│ 3. Generate Markdown                                          │
+│    - Executive summary                                        │
+│    - Step-by-step results                                    │
+│    - Embed screenshots                                        │
+│    - Issue summary                                            │
+│    - Final verdict with reasoning                            │
+└──────────────────────────────────────────────────────────────┘
+                           │
+                           ▼
+OUTPUT: Markdown Report
+┌──────────────────────────────────────────────────────────────┐
+│ File: Order Flow Requirements_Status.md                      │
+│                                                               │
+│ # Test Report: Order Flow Requirements                       │
+│                                                               │
+│ **Execution Date:** 2025-11-02 14:30:00                      │
+│ **Final Verdict:** ✅ PASS                                    │
+│                                                               │
+│ ## Executive Summary                                          │
+│ - Total Steps: 7                                              │
+│ - Passed: 6 ✅                                                │
+│ - Warnings: 1 ⚠️                                              │
+│                                                               │
+│ ## Step-by-Step Results                                       │
+│ ### Step 1: Go to main page                                  │
+│ **Status:** ✅ PASS                                           │
+│ ...                                                           │
+│                                                               │
+│ ## Issues Summary                                             │
+│ ### Minor Issues (1)                                          │
+│ - Tablet icon alignment off by 1px                           │
+│                                                               │
+│ ## Final Verdict                                              │
+│ **Decision:** ✅ PASS                                         │
+│ **Confidence:** 96%                                           │
+│ All functionality works correctly...                          │
+└──────────────────────────────────────────────────────────────┘
+
+
+═══════════════════════════════════════════════════════════════════════════
+                        DATA FLOW SUMMARY
+═══════════════════════════════════════════════════════════════════════════
+
+┌────────────┐
+│ Text File  │  Natural Language Requirements
+└─────┬──────┘
+      │
+      ▼
+┌────────────┐
+│  Parser    │  Structured Test Steps
+└─────┬──────┘
+      │
+      ▼
+┌────────────┐
+│  Executor  │  ─────────────────┐
+└─────┬──────┘                   │
+      │                          │
+      ├──> Browser Actions       │
+      │    (Playwright)          │
+      │                          │
+      ├──> Page State Capture    │
+      │    (Screenshots + HTML)  │
+      │                          │
+      └──> AI Verification ──────┤
+           (Vision + Reasoning)  │
+                                 │
+                                 ▼
+                          ┌────────────┐
+                          │ AI Model   │
+                          │ (GPT-4o)   │
+                          └─────┬──────┘
+                                │
+                                ▼
+                        ┌───────────────┐
+                        │ Verification  │
+                        │   Results     │
+                        └───────┬───────┘
+                                │
+                                ▼
+                        ┌───────────────┐
+                        │    Report     │
+                        │  Generator    │
+                        └───────┬───────┘
+                                │
+                                ▼
+                        ┌───────────────┐
+                        │ Markdown File │
+                        │  + Screenshots│
+                        └───────────────┘
+
+
+═══════════════════════════════════════════════════════════════════════════
+                        KEY BENEFITS
+═══════════════════════════════════════════════════════════════════════════
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│  COMPARED TO TRADITIONAL AUTOMATION:                                     │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                           │
+│  Traditional (Selenium/Playwright):                                      │
+│  ❌ Hard-coded selectors (break easily)                                  │
+│  ❌ No visual verification (can't see layout issues)                     │
+│  ❌ No subjective assessment (appeal, UX)                                │
+│  ❌ Brittle tests (fail on minor changes)                                │
+│  ❌ Complex to write and maintain                                        │
+│                                                                           │
+│  AI-Driven (This Framework):                                             │
+│  ✅ Natural language requirements (easy to write)                        │
+│  ✅ Visual verification (AI sees the page)                               │
+│  ✅ Subjective assessment (AI evaluates UX)                              │
+│  ✅ Flexible (adapts to minor changes)                                   │
+│  ✅ Detailed reasoning (explains failures)                               │
+│  ✅ Self-healing (AI finds elements intelligently)                       │
+│                                                                           │
+└─────────────────────────────────────────────────────────────────────────┘
+
+
+═══════════════════════════════════════════════════════════════════════════
+                        TECHNICAL SPECIFICATIONS
+═══════════════════════════════════════════════════════════════════════════
+
+Language:        Python 3.12+
+Browser:         Playwright (Chromium, Firefox, WebKit)
+AI Models:       OpenAI GPT-4o, Claude 3, Gemini Pro
+Configuration:   YAML
+Reports:         Markdown (with embedded screenshots)
+Testing:         pytest with >85% coverage
+Code Style:      PEP 8, type hints throughout
+Performance:     <5 minutes per test flow
+Accuracy:        >90% correct verdicts
+
+═══════════════════════════════════════════════════════════════════════════
+
+                        END OF ARCHITECTURE DIAGRAM
+
+═══════════════════════════════════════════════════════════════════════════
+

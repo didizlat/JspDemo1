@@ -1,0 +1,216 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1400" height="2000" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style>
+      .title { font-family: Arial, sans-serif; font-size: 24px; font-weight: bold; fill: #2c3e50; }
+      .subtitle { font-family: Arial, sans-serif; font-size: 18px; font-weight: bold; fill: #34495e; }
+      .text { font-family: Arial, sans-serif; font-size: 14px; fill: #2c3e50; }
+      .small-text { font-family: Arial, sans-serif; font-size: 12px; fill: #555; }
+      .component-box { fill: #ecf0f1; stroke: #34495e; stroke-width: 2; }
+      .primary-box { fill: #3498db; stroke: #2980b9; stroke-width: 2; }
+      .secondary-box { fill: #e74c3c; stroke: #c0392b; stroke-width: 2; }
+      .success-box { fill: #2ecc71; stroke: #27ae60; stroke-width: 2; }
+      .warning-box { fill: #f39c12; stroke: #d68910; stroke-width: 2; }
+      .white-text { fill: white; }
+      .arrow { stroke: #34495e; stroke-width: 2; fill: none; marker-end: url(#arrowhead); }
+      .dashed-arrow { stroke: #7f8c8d; stroke-width: 2; fill: none; stroke-dasharray: 5,5; marker-end: url(#arrowhead-gray); }
+    </style>
+    <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <polygon points="0 0, 10 3, 0 6" fill="#34495e" />
+    </marker>
+    <marker id="arrowhead-gray" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <polygon points="0 0, 10 3, 0 6" fill="#7f8c8d" />
+    </marker>
+  </defs>
+
+  <!-- Title -->
+  <text x="700" y="40" class="title" text-anchor="middle">AI-Driven Web Testing Framework</text>
+  <text x="700" y="70" class="subtitle" text-anchor="middle">System Architecture</text>
+
+  <!-- User/CLI Layer -->
+  <rect x="100" y="100" width="1200" height="80" class="component-box" rx="5"/>
+  <text x="700" y="130" class="subtitle" text-anchor="middle">Command Line Interface</text>
+  <text x="700" y="155" class="small-text" text-anchor="middle">python run_ai_test.py --requirements "Order Flow Requirements.txt"</text>
+
+  <!-- Arrow down -->
+  <path d="M 700 180 L 700 220" class="arrow"/>
+
+  <!-- Test Orchestrator -->
+  <rect x="100" y="220" width="1200" height="100" class="primary-box" rx="5"/>
+  <text x="700" y="250" class="subtitle white-text" text-anchor="middle">Test Orchestrator</text>
+  <text x="700" y="275" class="small-text white-text" text-anchor="middle">• Load configuration (YAML)</text>
+  <text x="700" y="295" class="small-text white-text" text-anchor="middle">• Initialize components • Coordinate execution • Generate reports</text>
+
+  <!-- Three arrows down to main components -->
+  <path d="M 300 320 L 300 380" class="arrow"/>
+  <path d="M 700 320 L 700 380" class="arrow"/>
+  <path d="M 1100 320 L 1100 380" class="arrow"/>
+
+  <!-- Three Main Components -->
+  <!-- 1. Requirement Parser -->
+  <rect x="100" y="380" width="350" height="120" class="success-box" rx="5"/>
+  <text x="275" y="410" class="subtitle white-text" text-anchor="middle">Requirement Parser</text>
+  <text x="275" y="435" class="small-text white-text" text-anchor="middle">• Parse text files</text>
+  <text x="275" y="455" class="small-text white-text" text-anchor="middle">• Extract steps and actions</text>
+  <text x="275" y="475" class="small-text white-text" text-anchor="middle">• Build test structure</text>
+
+  <!-- 2. AI Adapter -->
+  <rect x="525" y="380" width="350" height="120" class="secondary-box" rx="5"/>
+  <text x="700" y="410" class="subtitle white-text" text-anchor="middle">AI Adapter (Universal)</text>
+  <text x="700" y="435" class="small-text white-text" text-anchor="middle">• Vision analysis</text>
+  <text x="700" y="455" class="small-text white-text" text-anchor="middle">• Text verification</text>
+  <text x="700" y="475" class="small-text white-text" text-anchor="middle">• Multi-provider support</text>
+
+  <!-- 3. Test Executor -->
+  <rect x="950" y="380" width="350" height="120" class="warning-box" rx="5"/>
+  <text x="1125" y="410" class="subtitle white-text" text-anchor="middle">Test Executor</text>
+  <text x="1125" y="435" class="small-text white-text" text-anchor="middle">• Playwright browser control</text>
+  <text x="1125" y="455" class="small-text white-text" text-anchor="middle">• Action execution</text>
+  <text x="1125" y="475" class="small-text white-text" text-anchor="middle">• State capture</text>
+
+  <!-- Detailed Flow Section -->
+  <text x="700" y="560" class="subtitle" text-anchor="middle">Detailed Test Execution Flow</text>
+
+  <!-- Step 1: Input -->
+  <rect x="100" y="590" width="500" height="100" class="component-box" rx="5"/>
+  <text x="350" y="615" class="text" text-anchor="middle" font-weight="bold">1. Test Requirement (Input)</text>
+  <text x="350" y="640" class="small-text" text-anchor="middle">Natural language text file</text>
+  <text x="350" y="660" class="small-text" text-anchor="middle">Example: "Click on button X"</text>
+  <text x="350" y="675" class="small-text" text-anchor="middle">"Verify page shows Y"</text>
+
+  <!-- Arrow right -->
+  <path d="M 600 640 L 650 640" class="arrow"/>
+
+  <!-- Step 2: Parser -->
+  <rect x="650" y="590" width="650" height="100" class="component-box" rx="5"/>
+  <text x="975" y="615" class="text" text-anchor="middle" font-weight="bold">2. Requirement Parser</text>
+  <text x="975" y="640" class="small-text" text-anchor="middle">Structured TestSuite with steps, actions, verifications</text>
+  <text x="975" y="660" class="small-text" text-anchor="middle">Step 1: [NAVIGATE("/"), VERIFY("6 tabs")]</text>
+  <text x="975" y="675" class="small-text" text-anchor="middle">Step 2: [CLICK("Workflow"), VERIFY("Page title")]</text>
+
+  <!-- Arrow down -->
+  <path d="M 975 690 L 975 730" class="arrow"/>
+
+  <!-- Step 3: Browser Execution -->
+  <rect x="100" y="730" width="400" height="180" class="component-box" rx="5"/>
+  <text x="300" y="755" class="text" text-anchor="middle" font-weight="bold">3. Browser Automation</text>
+  <text x="300" y="780" class="small-text" text-anchor="middle">Playwright Browser Actions:</text>
+  <text x="300" y="800" class="small-text" text-anchor="middle">• Navigate to URL</text>
+  <text x="300" y="820" class="small-text" text-anchor="middle">• Click elements</text>
+  <text x="300" y="840" class="small-text" text-anchor="middle">• Fill forms</text>
+  <text x="300" y="860" class="small-text" text-anchor="middle">• Capture screenshots</text>
+  <text x="300" y="880" class="small-text" text-anchor="middle">• Extract HTML</text>
+
+  <!-- Arrow right -->
+  <path d="M 500 820 L 550 820" class="arrow"/>
+
+  <!-- Step 4: Page State -->
+  <rect x="550" y="730" width="350" height="180" class="component-box" rx="5"/>
+  <text x="725" y="755" class="text" text-anchor="middle" font-weight="bold">4. Page State Capture</text>
+  <text x="725" y="785" class="small-text" text-anchor="middle">Screenshot (PNG)</text>
+  <text x="725" y="805" class="small-text" text-anchor="middle">+</text>
+  <text x="725" y="825" class="small-text" text-anchor="middle">HTML Content</text>
+  <text x="725" y="845" class="small-text" text-anchor="middle">+</text>
+  <text x="725" y="865" class="small-text" text-anchor="middle">Console Logs</text>
+  <text x="725" y="885" class="small-text" text-anchor="middle">URL, Title, etc.</text>
+
+  <!-- Arrow right -->
+  <path d="M 900 820 L 950 820" class="arrow"/>
+
+  <!-- Step 5: AI Analysis -->
+  <rect x="950" y="730" width="350" height="180" class="secondary-box" rx="5"/>
+  <text x="1125" y="755" class="text white-text" text-anchor="middle" font-weight="bold">5. AI Analysis</text>
+  <text x="1125" y="785" class="small-text white-text" text-anchor="middle">GPT-4o Vision + Text</text>
+  <text x="1125" y="810" class="small-text white-text" text-anchor="middle">Analyzes screenshot</text>
+  <text x="1125" y="830" class="small-text white-text" text-anchor="middle">Reads HTML content</text>
+  <text x="1125" y="850" class="small-text white-text" text-anchor="middle">Compares vs. requirements</text>
+  <text x="1125" y="875" class="small-text white-text" text-anchor="middle">Returns: PASS/FAIL</text>
+  <text x="1125" y="895" class="small-text white-text" text-anchor="middle">+ Confidence + Reasoning</text>
+
+  <!-- Arrow down -->
+  <path d="M 700 910 L 700 960" class="arrow"/>
+
+  <!-- Step 6: Results -->
+  <rect x="100" y="960" width="1200" height="100" class="success-box" rx="5"/>
+  <text x="700" y="990" class="text white-text" text-anchor="middle" font-weight="bold">6. Test Results</text>
+  <text x="700" y="1015" class="small-text white-text" text-anchor="middle">Step Status: PASS/FAIL • Confidence Score • Issues Found • Screenshots • AI Reasoning</text>
+  <text x="700" y="1040" class="small-text white-text" text-anchor="middle">Example: ✅ PASS (95% confidence) - "All 6 tabs visible and properly labeled"</text>
+
+  <!-- Arrow down -->
+  <path d="M 700 1060 L 700 1100" class="arrow"/>
+
+  <!-- Step 7: Report -->
+  <rect x="100" y="1100" width="1200" height="120" class="primary-box" rx="5"/>
+  <text x="700" y="1130" class="text white-text" text-anchor="middle" font-weight="bold">7. Report Generator</text>
+  <text x="700" y="1155" class="small-text white-text" text-anchor="middle">Creates: {requirement_name}_Status.md</text>
+  <text x="700" y="1180" class="small-text white-text" text-anchor="middle">• Executive Summary • Step-by-Step Results • Screenshots • Issue Categories</text>
+  <text x="700" y="1200" class="small-text white-text" text-anchor="middle">• Final Verdict (PASS/FAIL) with AI Reasoning</text>
+
+  <!-- AI Provider Options -->
+  <text x="700" y="1270" class="subtitle" text-anchor="middle">AI Provider Options (Universal Adapter)</text>
+
+  <!-- Four AI providers -->
+  <rect x="100" y="1290" width="250" height="80" class="component-box" rx="5"/>
+  <text x="225" y="1320" class="text" text-anchor="middle" font-weight="bold">OpenAI</text>
+  <text x="225" y="1345" class="small-text" text-anchor="middle">GPT-4o</text>
+  <text x="225" y="1360" class="small-text" text-anchor="middle">Best vision</text>
+
+  <rect x="400" y="1290" width="250" height="80" class="component-box" rx="5"/>
+  <text x="525" y="1320" class="text" text-anchor="middle" font-weight="bold">Anthropic</text>
+  <text x="525" y="1345" class="small-text" text-anchor="middle">Claude 3</text>
+  <text x="525" y="1360" class="small-text" text-anchor="middle">Best reasoning</text>
+
+  <rect x="700" y="1290" width="250" height="80" class="component-box" rx="5"/>
+  <text x="825" y="1320" class="text" text-anchor="middle" font-weight="bold">Google</text>
+  <text x="825" y="1345" class="small-text" text-anchor="middle">Gemini Pro</text>
+  <text x="825" y="1360" class="small-text" text-anchor="middle">Fast and good</text>
+
+  <rect x="1000" y="1290" width="250" height="80" class="component-box" rx="5"/>
+  <text x="1125" y="1320" class="text" text-anchor="middle" font-weight="bold">Custom</text>
+  <text x="1125" y="1345" class="small-text" text-anchor="middle">Any API</text>
+  <text x="1125" y="1360" class="small-text" text-anchor="middle">Local models</text>
+
+  <!-- Example Result -->
+  <text x="700" y="1430" class="subtitle" text-anchor="middle">Example Test Result</text>
+
+  <rect x="100" y="1450" width="1200" height="240" class="component-box" rx="5"/>
+  <text x="700" y="1480" class="text" text-anchor="middle" font-weight="bold">Order Flow Requirements_Status.md</text>
+  
+  <text x="150" y="1510" class="small-text">📊 Executive Summary:</text>
+  <text x="150" y="1530" class="small-text">  Total Steps: 8 | Passed: 7 ✅ | Failed: 0 ❌ | Warnings: 1 ⚠️</text>
+  
+  <text x="150" y="1560" class="small-text">🔍 Step 1: Navigate to main page → ✅ PASS (95% confidence)</text>
+  <text x="180" y="1580" class="small-text">AI Reasoning: "6 tabs clearly visible, Welcome text present, no overflow"</text>
+  
+  <text x="150" y="1605" class="small-text">🔍 Step 5: Test quantity controls → ✅ PASS (99% confidence)</text>
+  <text x="180" y="1625" class="small-text">AI Reasoning: "Plus/minus buttons work correctly, quantity updates accurately"</text>
+  
+  <text x="150" y="1650" class="small-text">🎯 Final Verdict: ✅ PASS (Overall confidence: 96%)</text>
+  <text x="180" y="1670" class="small-text">All functionality works correctly. Minor cosmetic issue detected (1px alignment)</text>
+
+  <!-- Key Benefits -->
+  <text x="700" y="1740" class="subtitle" text-anchor="middle">Key Benefits vs Traditional Automation</text>
+
+  <!-- Two columns -->
+  <rect x="100" y="1760" width="550" height="200" class="component-box" rx="5"/>
+  <text x="375" y="1790" class="text" text-anchor="middle" font-weight="bold">❌ Traditional Automation</text>
+  <text x="150" y="1820" class="small-text">• Hard-coded selectors (brittle)</text>
+  <text x="150" y="1840" class="small-text">• No visual verification</text>
+  <text x="150" y="1860" class="small-text">• Cannot assess UX/appeal</text>
+  <text x="150" y="1880" class="small-text">• Complex code to write</text>
+  <text x="150" y="1900" class="small-text">• Breaks on minor changes</text>
+  <text x="150" y="1920" class="small-text">• No reasoning for failures</text>
+
+  <rect x="750" y="1760" width="550" height="200" class="component-box" rx="5"/>
+  <text x="1025" y="1790" class="text" text-anchor="middle" font-weight="bold">✅ AI-Driven Automation</text>
+  <text x="800" y="1820" class="small-text">• Natural language requirements</text>
+  <text x="800" y="1840" class="small-text">• Full visual verification (AI sees)</text>
+  <text x="800" y="1860" class="small-text">• Subjective UX assessment</text>
+  <text x="800" y="1880" class="small-text">• Easy to write and maintain</text>
+  <text x="800" y="1900" class="small-text">• Self-healing (adapts to changes)</text>
+  <text x="800" y="1920" class="small-text">• Detailed AI reasoning</text>
+
+  <!-- Footer -->
+  <text x="700" y="1980" class="small-text" text-anchor="middle" font-style="italic">Built with Python, Playwright, and GPT-4o Vision • Designed for JSP Demo Application</text>
+
+</svg>

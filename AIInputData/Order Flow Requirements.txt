@@ -1,0 +1,26 @@
+For all pages: 
+- Make sure that the controls look appealing and are aligned in the center of the page 
+- Every page must have a control to go back to the main page
+- All clickable buttons need to be clicked and do what they say they do and are functional
+1. First, go to the main page. 
+Description: Make sure that you see 6 tabs
+- User Registration Form 
+- Multi-Step Workflow Demo
+- Simple Login Form
+- View All Registrations
+- View All Orders
+- H2 Database Controls
+Make sure that the page says 'Welcome to JSP Demo!' 
+Make sure there is no text overflow
+2. Click on the multi-step workflow demo
+3. Make sure the browser goes to a page called 'Step 1: Select a Product'
+Make sure you see well-aligned number of product with their prices on the page each icon has to have a icon, has to have a name, and has to have a price
+4. Select a product from the list and click on continue to the next step
+5. Make sure that the browser goes to a page called 'Step 2: Select Quantity'
+Make sure there is control for the quantity select quantity more than 1 2-10 for example by entering directly to the quantity field
+Then click on the plus and minus field to make sure the number go up and down by one.
+Before you go to the next page, make sure that the quantity number is two or more items selected.
+6. Click on 'continue to review'
+Supposed to see Confirm that the product the user selected the quantity and the total price. You have to confirm that the number of items times the price is the equal to the total price displayed.
+7. Click on 'Confirm and Complete Order'
+8. Make sure that the browser goes to a page called 'Order Complete'. You need to see an order number displayed, 'Order Summary', 'Product', 'Quantity', 'Status', 'View All Orders', 'Start New Order', and 'Back to Home'

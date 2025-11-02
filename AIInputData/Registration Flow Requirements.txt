@@ -1,0 +1,60 @@
+For all pages: 
+- Make sure that the controls look appealing and are aligned in the center of the page 
+- Every page must have a control to go back to the main page
+- All clickable buttons need to be clicked and do what they say they do and are functional
+1. First, go to the main page. 
+Description: Make sure that you see 6 tabs
+- User Registration Form 
+- Multi-Step Workflow Demo
+- Simple Login Form
+- View All Registrations
+- View All Orders
+- H2 Database Console
+Make sure that the page says 'Welcome to JSP Demo!' 
+Make sure there is no text overflow
+2. Click on 'User Registration Form'
+3. Make sure the browser goes to a page called 'User Registration'
+Verify that the page contains a form with the following fields:
+- First Name (text input, required)
+- Last Name (text input, required)
+- Email (email input, required)
+- Phone Number (text input, required)
+- Country (dropdown with options: USA, Canada, UK, France, Germany, Japan, Australia)
+- Gender (radio buttons: Male, Female, Other)
+- Interests (checkboxes: Technology, Sports, Music, Reading, Travel)
+- Comments (textarea, optional)
+- Newsletter (checkbox with label "Subscribe to newsletter")
+4. Verify all form controls are properly aligned and labeled
+Make sure each field has a clear label above or beside it
+Make sure the form is centered on the page
+5. Fill out the registration form with test data:
+- First Name: Enter "John"
+- Last Name: Enter "Doe"
+- Email: Enter "john.doe@example.com"
+- Phone: Enter "+1-555-123-4567"
+- Country: Select "USA"
+- Gender: Select "Male"
+- Interests: Check "Technology" and "Sports"
+- Comments: Enter "This is a test registration from AI testing"
+- Newsletter: Check the checkbox
+6. Verify that the 'Register' button is visible and clickable
+7. Click on the 'Register' button
+8. Make sure the browser goes to a page called 'Registration Successful' or shows success message
+Verify that the success page displays:
+- A success message or confirmation
+- The user's first name (should show "John")
+- The user's email address (should show "john.doe@example.com")
+- A registration ID or confirmation number
+- A link or button to 'View All Registrations'
+- A link or button to 'Back to Home'
+9. Verify that 'View All Registrations' link is clickable
+10. Click on 'View All Registrations'
+11. Make sure the browser goes to the admin registrations page
+Verify that the newly registered user appears in the list:
+- Name should be "John Doe"
+- Email should be "john.doe@example.com"
+- Country should show "USA" or "us"
+- Interests should include "Technology" and "Sports"
+- Newsletter status should show "Yes" or be checked
+12. Verify that there is a way to navigate back to the home page
+
