@@ -76,12 +76,20 @@ public class FormController {
         registration.setComments(comments);
         registration.setNewsletter("yes".equals(newsletter));
         
-        registrationRepository.save(registration);
+        Registration saved = registrationRepository.save(registration);
         
-        // Success
-        model.addAttribute("firstName", firstName);
-        model.addAttribute("email", email);
-        model.addAttribute("registrationId", registration.getId());
+        // Redirect to success page to prevent form resubmission
+        return "redirect:/registration/success?id=" + saved.getId();
+    }
+    
+    @GetMapping("/registration/success")
+    public String registrationSuccess(@RequestParam Long id, Model model) {
+        Registration registration = registrationRepository.findById(id).orElse(null);
+        if (registration != null) {
+            model.addAttribute("firstName", registration.getFirstName());
+            model.addAttribute("email", registration.getEmail());
+            model.addAttribute("registrationId", id);
+        }
         return "registration-success";
     }
 
@@ -130,12 +138,21 @@ public class FormController {
         Order order = new Order();
         order.setProduct(product);
         order.setQuantity(Integer.parseInt(quantity));
-        orderRepository.save(order);
+        Order saved = orderRepository.save(order);
         
-        model.addAttribute("product", product);
-        model.addAttribute("quantity", quantity);
-        model.addAttribute("orderNumber", order.getOrderNumber());
-        model.addAttribute("orderId", order.getId());
+        // Redirect to success page
+        return "redirect:/workflow/complete?id=" + saved.getId();
+    }
+    
+    @GetMapping("/workflow/complete")
+    public String workflowCompleteSuccess(@RequestParam Long id, Model model) {
+        Order order = orderRepository.findById(id).orElse(null);
+        if (order != null) {
+            model.addAttribute("product", order.getProduct());
+            model.addAttribute("quantity", order.getQuantity());
+            model.addAttribute("orderNumber", order.getOrderNumber());
+            model.addAttribute("orderId", order.getId());
+        }
         return "workflow-complete";
     }
     

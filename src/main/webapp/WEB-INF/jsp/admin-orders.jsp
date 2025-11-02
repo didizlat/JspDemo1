@@ -1,9 +1,10 @@
-<%@ page contentType="text/html;charset=UTF-8" language="java" %>
+<%@ page contentType="text/html;charset=UTF-8" language="java" pageEncoding="UTF-8" %>
 <%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin - Orders</title>
     <style>
@@ -187,11 +188,11 @@
                                     <div class="product-cell">
                                         <span class="product-icon">
                                             <c:choose>
-                                                <c:when test="${order.product == 'laptop'}">💻</c:when>
-                                                <c:when test="${order.product == 'phone'}">📱</c:when>
-                                                <c:when test="${order.product == 'tablet'}">📟</c:when>
-                                                <c:when test="${order.product == 'watch'}">⌚</c:when>
-                                                <c:otherwise>📦</c:otherwise>
+                                                <c:when test="${order.product == 'laptop'}">&#128187;</c:when>
+                                                <c:when test="${order.product == 'phone'}">&#128241;</c:when>
+                                                <c:when test="${order.product == 'tablet'}">&#128223;</c:when>
+                                                <c:when test="${order.product == 'watch'}">&#8986;</c:when>
+                                                <c:otherwise>&#128230;</c:otherwise>
                                             </c:choose>
                                         </span>
                                         <span style="text-transform: capitalize;">${order.product}</span>

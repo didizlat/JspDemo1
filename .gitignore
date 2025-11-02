@@ -10,6 +10,12 @@ buildNumber.properties
 .mvn/timing.properties
 .mvn/wrapper/maven-wrapper.jar
 
+# H2 Database Files (Persistent)
+data/
+*.db
+*.trace.db
+*.lock.db
+
 # Spring Boot
 *.log
 *.gz
