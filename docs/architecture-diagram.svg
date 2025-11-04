@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Copied from AIInputData/architecture-diagram.svg for GitHub Pages -->
+<svg width="1400" height="2000" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style>
+      .title { font-family: Arial, sans-serif; font-size: 24px; font-weight: bold; fill: #2c3e50; }
+      .subtitle { font-family: Arial, sans-serif; font-size: 18px; font-weight: bold; fill: #34495e; }
+      .text { font-family: Arial, sans-serif; font-size: 14px; fill: #2c3e50; }
+      .small-text { font-family: Arial, sans-serif; font-size: 12px; fill: #555; }
+      .component-box { fill: #ecf0f1; stroke: #34495e; stroke-width: 2; }
+      .primary-box { fill: #3498db; stroke: #2980b9; stroke-width: 2; }
+      .secondary-box { fill: #e74c3c; stroke: #c0392b; stroke-width: 2; }
+      .success-box { fill: #2ecc71; stroke: #27ae60; stroke-width: 2; }
+      .warning-box { fill: #f39c12; stroke: #d68910; stroke-width: 2; }
+      .white-text { fill: white; }
+      .arrow { stroke: #34495e; stroke-width: 2; fill: none; marker-end: url(#arrowhead); }
+      .dashed-arrow { stroke: #7f8c8d; stroke-width: 2; fill: none; stroke-dasharray: 5,5; marker-end: url(#arrowhead-gray); }
+    </style>
+    <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <polygon points="0 0, 10 3, 0 6" fill="#34495e" />
+    </marker>
+    <marker id="arrowhead-gray" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <polygon points="0 0, 10 3, 0 6" fill="#7f8c8d" />
+    </marker>
+  </defs>
+  <text x="700" y="40" class="title" text-anchor="middle">AI-Driven Web Testing Framework</text>
+  <text x="700" y="70" class="subtitle" text-anchor="middle">System Architecture</text>
+  <!-- Content omitted for brevity on Pages copy -->
+  <text x="700" y="1980" class="small-text" text-anchor="middle" font-style="italic">Built with Python, Playwright, and GPT-4o Vision • Designed for JSP Demo Application</text>
+</svg>
+
+
