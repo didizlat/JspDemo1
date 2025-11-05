@@ -1,0 +1,11 @@
+target/
+data/
+.git/
+.gitignore
+node_modules/
+ui-tests/node_modules/
+*.log
+*.iml
+.idea/
+.vscode/
+
