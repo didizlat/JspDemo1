@@ -1,0 +1,34 @@
+ai:
+  default_provider: openai
+  providers:
+    openai:
+      model: gpt-4o
+      temperature: 0.2
+      max_tokens: 2000
+    claude:
+      model: claude-3-opus-20240229
+      temperature: 0.2
+    gemini:
+      model: gemini-pro-vision
+
+browser:
+  headless: false
+  viewport:
+    width: 1920
+    height: 1080
+  timeout: 30000
+  slow_mo: 500
+
+testing:
+  base_url: http://localhost:8080
+  screenshot_on_failure: true
+  save_html_on_failure: true
+  console_error_threshold: 0
+
+reporting:
+  output_dir: ./test-reports
+  screenshot_dir: ./screenshots
+  format: markdown
+  include_screenshots: true
+  include_html_snapshots: false
+
