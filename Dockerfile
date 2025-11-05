@@ -17,14 +17,14 @@ RUN mvn -B -q -DskipTests package
 FROM eclipse-temurin:17-jre
 WORKDIR /app
 
-# Copy fat jar
-COPY --from=builder /workspace/target/jspdemo1-1.0.0.jar app.jar
+# Copy WAR file
+COPY --from=builder /workspace/target/jspdemo1-1.0.0.war app.war
 
 # Use cloud profile by default; Cloud Run sets PORT env var
 ENV SPRING_PROFILES_ACTIVE=cloud
 ENV JAVA_OPTS="-Xms256m -Xmx512m"
 
 EXPOSE 8080
-ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.war"]
 
 
