@@ -10,6 +10,12 @@ A Spring Boot JSP demonstration application with comprehensive forms and interac
 - **Responsive Design** - Mobile, tablet, and desktop layouts
 - **Playwright Tests** - Automated browser testing suite
 
+## 🌐 Live Deployment
+
+**Public URL**: https://jspdemo1-925833206369.us-east1.run.app
+
+The application is deployed on Google Cloud Run with PostgreSQL database (Neon).
+
 ## Getting Started
 
 ### Prerequisites
@@ -17,7 +23,7 @@ A Spring Boot JSP demonstration application with comprehensive forms and interac
 - Java 17 or higher
 - Node.js 18+ (for UI tests)
 
-### Running the Application
+### Running Locally
 
 ```bash
 # Start the Spring Boot server
