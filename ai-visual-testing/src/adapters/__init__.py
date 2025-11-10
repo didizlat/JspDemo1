@@ -23,6 +23,24 @@ try:
 except ImportError:
     OpenAIAdapter = None  # type: ignore
 
+try:
+    from .claude_adapter import ClaudeAdapter
+except ImportError:
+    ClaudeAdapter = None  # type: ignore
+
+try:
+    from .gemini_adapter import GeminiAdapter
+except ImportError:
+    GeminiAdapter = None  # type: ignore
+
+try:
+    from .custom_adapter import CustomAdapter
+except ImportError:
+    CustomAdapter = None  # type: ignore
+
+# Import factory
+from .factory import AdapterFactory
+
 __all__ = [
     "AIAdapter",
     "AIResponse",
@@ -34,4 +52,8 @@ __all__ = [
     "handle_ai_errors",
     "retry_on_api_error",
     "OpenAIAdapter",
+    "ClaudeAdapter",
+    "GeminiAdapter",
+    "CustomAdapter",
+    "AdapterFactory",
 ]
