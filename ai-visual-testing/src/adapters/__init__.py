@@ -17,6 +17,12 @@ from .base import (
     retry_on_api_error,
 )
 
+# Import adapters (lazy import to avoid dependency issues)
+try:
+    from .openai_adapter import OpenAIAdapter
+except ImportError:
+    OpenAIAdapter = None  # type: ignore
+
 __all__ = [
     "AIAdapter",
     "AIResponse",
@@ -27,4 +33,5 @@ __all__ = [
     "AIConfigurationError",
     "handle_ai_errors",
     "retry_on_api_error",
+    "OpenAIAdapter",
 ]
