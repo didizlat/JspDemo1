@@ -1,3 +1,4 @@
+# AI Configuration
 ai:
   default_provider: openai
   providers:
@@ -5,30 +6,41 @@ ai:
       model: gpt-4o
       temperature: 0.2
       max_tokens: 2000
+      api_key_env: OPENAI_API_KEY  # Environment variable name for API key
     claude:
       model: claude-3-opus-20240229
       temperature: 0.2
+      api_key_env: ANTHROPIC_API_KEY
     gemini:
       model: gemini-pro-vision
+      temperature: 0.2
+      api_key_env: GOOGLE_API_KEY
 
+# Browser Configuration
 browser:
   headless: false
+  browser_type: chromium  # chromium, firefox, webkit
   viewport:
     width: 1920
     height: 1080
-  timeout: 30000
-  slow_mo: 500
+  timeout: 30000  # milliseconds
+  slow_mo: 500  # milliseconds
 
+# Testing Configuration
 testing:
   base_url: http://localhost:8080
   screenshot_on_failure: true
   save_html_on_failure: true
   console_error_threshold: 0
+  stop_on_failure: false
+  max_retries: 0
 
+# Reporting Configuration
 reporting:
   output_dir: ./test-reports
   screenshot_dir: ./screenshots
-  format: markdown
+  format: markdown  # markdown, json, html
   include_screenshots: true
   include_html_snapshots: false
+  template_path: null  # Optional custom template path
 
