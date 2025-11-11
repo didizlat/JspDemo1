@@ -160,9 +160,6 @@ class TestExecutor:
         logger.info(f"Executing step {step.step_number}: {step.description}")
         
         try:
-            # Capture initial state
-            state_before = await self._capture_state()
-            
             # Execute actions
             for action in step.actions:
                 try:
@@ -398,7 +395,7 @@ class TestExecutor:
         
         for selector in selectors:
             try:
-                element = await self.page.wait_for_selector(selector, timeout=5000)
+                element = await self.page.wait_for_selector(selector, timeout=self.config.browser.timeout)
                 await element.fill(value)
                 logger.debug(f"Successfully typed '{value}' into {target}")
                 return
@@ -422,7 +419,7 @@ class TestExecutor:
         
         for selector in selectors:
             try:
-                select_element = await self.page.wait_for_selector(selector, timeout=5000)
+                select_element = await self.page.wait_for_selector(selector, timeout=self.config.browser.timeout)
                 await select_element.select_option(value)
                 logger.debug(f"Successfully selected '{value}' from {target}")
                 return
@@ -452,7 +449,7 @@ class TestExecutor:
         
         for selector in selectors:
             try:
-                element = await self.page.wait_for_selector(selector, timeout=5000)
+                element = await self.page.wait_for_selector(selector, timeout=self.config.browser.timeout)
                 await element.check()
                 logger.debug(f"Successfully checked: {target}")
                 return
@@ -471,7 +468,7 @@ class TestExecutor:
         
         for selector in selectors:
             try:
-                element = await self.page.wait_for_selector(selector, timeout=5000)
+                element = await self.page.wait_for_selector(selector, timeout=self.config.browser.timeout)
                 await element.uncheck()
                 logger.debug(f"Successfully unchecked: {target}")
                 return
@@ -490,8 +487,12 @@ class TestExecutor:
         
         # Otherwise, try to click a link or button
         await self._click(target)
-        # Wait for navigation
-        await self.page.wait_for_load_state("networkidle", timeout=self.config.browser.timeout)
+        # Wait for navigation (with timeout handling)
+        try:
+            await self.page.wait_for_load_state("networkidle", timeout=self.config.browser.timeout)
+        except PlaywrightTimeoutError:
+            # Navigation may not have occurred, continue anyway
+            logger.debug(f"Navigation wait timed out for {target}, continuing...")
         logger.debug(f"Navigated via click: {target}")
     
     async def _wait(self, target: str):
@@ -513,7 +514,7 @@ class TestExecutor:
         else:
             # Try to scroll to element
             try:
-                element = await self.page.wait_for_selector(target, timeout=5000)
+                element = await self.page.wait_for_selector(target, timeout=self.config.browser.timeout)
                 await element.scroll_into_view_if_needed()
             except Exception:
                 raise ActionExecutionError(f"Could not scroll to: {target}")
@@ -565,14 +566,7 @@ class TestExecutor:
         # Check for failures
         failed = any(not vr.passed for vr in verification_results)
         if failed:
-            # Check severity of failures
-            critical_failures = any(
-                not vr.passed and any(issue.severity == Severity.CRITICAL for issue in vr.issues)
-                for vr in verification_results
-            )
-            if critical_failures:
-                return StepStatus.FAILED
-            # Any failure is a failure
+            # Any failure results in FAILED status
             return StepStatus.FAILED
         
         # Check for warnings (low confidence or minor issues)
