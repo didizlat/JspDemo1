@@ -44,7 +44,22 @@ logger = logging.getLogger(__name__)
 
 class ActionExecutionError(Exception):
     """Error executing an action."""
-    pass
+    
+    def __init__(self, message: str, attempted_selectors: Optional[List[str]] = None, original_error: Optional[Exception] = None):
+        super().__init__(message)
+        self.attempted_selectors = attempted_selectors or []
+        self.original_error = original_error
+        self.message = message
+    
+    def __str__(self):
+        msg = self.message
+        if self.attempted_selectors:
+            msg += f"\nAttempted selectors: {', '.join(self.attempted_selectors[:5])}"
+            if len(self.attempted_selectors) > 5:
+                msg += f" (and {len(self.attempted_selectors) - 5} more)"
+        if self.original_error:
+            msg += f"\nOriginal error: {str(self.original_error)}"
+        return msg
 
 
 class TestExecutor:
@@ -105,9 +120,20 @@ class TestExecutor:
             # Navigate to base URL
             base_url = self.config.testing.base_url
             if base_url:
+                if not base_url.startswith(("http://", "https://")):
+                    logger.warning(f"Base URL '{base_url}' doesn't start with http:// or https://, adding http://")
+                    base_url = f"http://{base_url}"
+                
                 logger.info(f"Navigating to base URL: {base_url}")
-                await self.page.goto(base_url, wait_until="networkidle", timeout=self.config.browser.timeout)
-                await asyncio.sleep(1)  # Allow page to settle
+                try:
+                    await self.page.goto(base_url, wait_until="networkidle", timeout=self.config.browser.timeout)
+                    await asyncio.sleep(1)  # Allow page to settle
+                    logger.info(f"Successfully navigated to: {base_url}")
+                except PlaywrightTimeoutError:
+                    logger.warning(f"Navigation to {base_url} timed out, but continuing...")
+                except Exception as e:
+                    logger.error(f"Failed to navigate to {base_url}: {e}")
+                    raise RuntimeError(f"Could not navigate to base URL: {base_url}") from e
             
             # Execute each step
             for step in test_suite.steps:
@@ -166,9 +192,16 @@ class TestExecutor:
                     await self._execute_action(action)
                     # Wait after action
                     await asyncio.sleep(action.wait_after_ms / 1000.0)
+                except ActionExecutionError as e:
+                    # Re-raise ActionExecutionError with full context
+                    logger.error(f"Error executing action {action.type} on '{action.target}': {e}")
+                    raise
                 except Exception as e:
-                    logger.error(f"Error executing action {action.type}: {e}")
-                    raise ActionExecutionError(f"Failed to execute action: {action.description}") from e
+                    logger.error(f"Error executing action {action.type} on '{action.target}': {e}", exc_info=True)
+                    raise ActionExecutionError(
+                        f"Failed to execute action: {action.description or f'{action.type} on {action.target}'}",
+                        original_error=e
+                    ) from e
             
             # Capture state after actions
             state_after = await self._capture_state()
@@ -291,27 +324,38 @@ class TestExecutor:
         
         Returns:
             PageState object
+            
+        Raises:
+            RuntimeError: If browser page is not initialized
         """
         if not self.page:
-            raise RuntimeError("Browser page not initialized")
+            raise RuntimeError("Browser page not initialized. Call _setup_browser() first.")
         
-        # Get URL and title
-        url = self.page.url
-        title = self.page.title
-        
-        # Capture screenshot
-        screenshot = await self.page.screenshot(type="png", full_page=True)
-        
-        # Get HTML content
-        html = await self.page.content()
-        
-        return PageState(
-            url=url,
-            title=title,
-            screenshot=screenshot,
-            html=html,
-            timestamp=datetime.now(),
-        )
+        try:
+            # Get URL and title
+            url = self.page.url
+            title = self.page.title
+            
+            # Capture screenshot with error handling
+            try:
+                screenshot = await self.page.screenshot(type="png", full_page=True)
+            except Exception as e:
+                logger.warning(f"Failed to capture full-page screenshot: {e}, trying viewport screenshot")
+                screenshot = await self.page.screenshot(type="png", full_page=False)
+            
+            # Get HTML content
+            html = await self.page.content()
+            
+            return PageState(
+                url=url,
+                title=title,
+                screenshot=screenshot,
+                html=html,
+                timestamp=datetime.now(),
+            )
+        except Exception as e:
+            logger.error(f"Error capturing page state: {e}", exc_info=True)
+            raise RuntimeError(f"Failed to capture page state: {e}") from e
     
     async def _execute_action(self, action: Action):
         """
@@ -319,66 +363,97 @@ class TestExecutor:
         
         Args:
             action: Action to execute
+            
+        Raises:
+            ActionExecutionError: If action execution fails
+            ValueError: If action is invalid
         """
-        logger.debug(f"Executing action: {action.type} on {action.target}")
+        # Validate action
+        if not action.target or not action.target.strip():
+            raise ValueError(f"Action target cannot be empty for action type: {action.type}")
         
-        if action.type == ActionType.CLICK:
-            await self._click(action.target)
-        elif action.type == ActionType.TYPE:
-            await self._type(action.target, action.value)
-        elif action.type == ActionType.FILL:
-            await self._fill(action.target, action.value)
-        elif action.type == ActionType.SELECT:
-            await self._select(action.target, action.value)
-        elif action.type == ActionType.CHECK:
-            await self._check(action.target)
-        elif action.type == ActionType.UNCHECK:
-            await self._uncheck(action.target)
-        elif action.type == ActionType.NAVIGATE:
-            await self._navigate(action.target)
-        elif action.type == ActionType.WAIT:
-            await self._wait(action.target)
-        elif action.type == ActionType.SCROLL:
-            await self._scroll(action.target)
-        else:
-            raise ActionExecutionError(f"Unknown action type: {action.type}")
+        if action.type in [ActionType.TYPE, ActionType.FILL, ActionType.SELECT]:
+            if not action.value or not action.value.strip():
+                raise ValueError(f"Action value is required for action type: {action.type}")
+        
+        logger.debug(f"Executing action: {action.type} on '{action.target}'" + 
+                    (f" with value '{action.value}'" if action.value else ""))
+        
+        try:
+            if action.type == ActionType.CLICK:
+                await self._click(action.target)
+            elif action.type == ActionType.TYPE:
+                await self._type(action.target, action.value)
+            elif action.type == ActionType.FILL:
+                await self._fill(action.target, action.value)
+            elif action.type == ActionType.SELECT:
+                await self._select(action.target, action.value)
+            elif action.type == ActionType.CHECK:
+                await self._check(action.target)
+            elif action.type == ActionType.UNCHECK:
+                await self._uncheck(action.target)
+            elif action.type == ActionType.NAVIGATE:
+                await self._navigate(action.target)
+            elif action.type == ActionType.WAIT:
+                await self._wait(action.target)
+            elif action.type == ActionType.SCROLL:
+                await self._scroll(action.target)
+            else:
+                raise ActionExecutionError(f"Unknown action type: {action.type}")
+        except ActionExecutionError:
+            # Re-raise ActionExecutionError as-is (already has context)
+            raise
+        except Exception as e:
+            # Wrap unexpected errors
+            raise ActionExecutionError(
+                f"Unexpected error executing {action.type} on '{action.target}': {str(e)}",
+                original_error=e
+            ) from e
     
     async def _click(self, target: str):
         """Click on an element using multiple strategies."""
         strategies = [
             # Try exact text match
-            lambda: self.page.click(f'text="{target}"'),
+            (f'text="{target}"', lambda: self.page.click(f'text="{target}"')),
             # Try button with text
-            lambda: self.page.click(f'button:has-text("{target}")'),
+            (f'button:has-text("{target}")', lambda: self.page.click(f'button:has-text("{target}")')),
             # Try link with text
-            lambda: self.page.click(f'a:has-text("{target}")'),
+            (f'a:has-text("{target}")', lambda: self.page.click(f'a:has-text("{target}")')),
             # Try aria-label
-            lambda: self.page.click(f'[aria-label="{target}"]'),
+            (f'[aria-label="{target}"]', lambda: self.page.click(f'[aria-label="{target}"]')),
             # Try title attribute
-            lambda: self.page.click(f'[title="{target}"]'),
+            (f'[title="{target}"]', lambda: self.page.click(f'[title="{target}"]')),
             # Try partial text match
-            lambda: self.page.click(f'text=/{target}/i'),
+            (f'text=/{target}/i', lambda: self.page.click(f'text=/{target}/i')),
             # Try by ID if target looks like an ID
-            lambda: self.page.click(f'#{target}') if target.startswith('#') else None,
+            (f'#{target}', lambda: self.page.click(f'#{target}') if target.startswith('#') else None),
             # Try by class if target looks like a class
-            lambda: self.page.click(f'.{target}') if target.startswith('.') else None,
+            (f'.{target}', lambda: self.page.click(f'.{target}') if target.startswith('.') else None),
         ]
         
+        attempted_selectors = []
         last_error = None
-        for strategy in strategies:
+        
+        for selector, strategy in strategies:
+            if selector not in attempted_selectors:
+                attempted_selectors.append(selector)
+            
             try:
                 result = strategy()
                 if result is not None:
                     await result
-                else:
-                    continue
-                logger.debug(f"Successfully clicked: {target}")
-                return
+                    logger.debug(f"Successfully clicked '{target}' using selector: {selector}")
+                    return
             except Exception as e:
                 last_error = e
+                logger.debug(f"Selector '{selector}' failed: {str(e)[:100]}")
                 continue
         
-        raise ActionExecutionError(f"Could not click element: {target}. Last error: {last_error}")
+        raise ActionExecutionError(
+            f"Could not click element: '{target}'. Tried {len(attempted_selectors)} selectors.",
+            attempted_selectors=attempted_selectors,
+            original_error=last_error
+        )
     
     async def _type(self, target: str, value: str):
         """Type text into a field."""
@@ -393,16 +468,26 @@ class TestExecutor:
             f'label:has-text("{target}") + textarea',
         ]
         
+        attempted_selectors = []
+        last_error = None
+        
         for selector in selectors:
+            attempted_selectors.append(selector)
             try:
                 element = await self.page.wait_for_selector(selector, timeout=self.config.browser.timeout)
                 await element.fill(value)
-                logger.debug(f"Successfully typed '{value}' into {target}")
+                logger.debug(f"Successfully typed '{value}' into '{target}' using selector: {selector}")
                 return
-            except Exception:
+            except Exception as e:
+                last_error = e
+                logger.debug(f"Selector '{selector}' failed: {str(e)[:100]}")
                 continue
         
-        raise ActionExecutionError(f"Could not find input field: {target}")
+        raise ActionExecutionError(
+            f"Could not find input field: '{target}'. Tried {len(attempted_selectors)} selectors.",
+            attempted_selectors=attempted_selectors,
+            original_error=last_error
+        )
     
     async def _fill(self, target: str, value: str):
         """Fill a form field (alias for type)."""
@@ -417,24 +502,36 @@ class TestExecutor:
             f'label:has-text("{target}") + select',
         ]
         
+        attempted_selectors = []
+        last_error = None
+        
         for selector in selectors:
+            attempted_selectors.append(selector)
             try:
                 select_element = await self.page.wait_for_selector(selector, timeout=self.config.browser.timeout)
                 await select_element.select_option(value)
-                logger.debug(f"Successfully selected '{value}' from {target}")
+                logger.debug(f"Successfully selected '{value}' from '{target}' using selector: {selector}")
                 return
-            except Exception:
+            except Exception as e:
+                last_error = e
+                logger.debug(f"Selector '{selector}' failed: {str(e)[:100]}")
                 continue
         
         # Try clicking on option text directly
+        option_selector = f'text="{value}"'
+        attempted_selectors.append(option_selector)
         try:
-            await self.page.click(f'text="{value}"')
+            await self.page.click(option_selector)
             logger.debug(f"Successfully clicked option '{value}'")
             return
-        except Exception:
-            pass
+        except Exception as e:
+            last_error = e
         
-        raise ActionExecutionError(f"Could not select '{value}' from {target}")
+        raise ActionExecutionError(
+            f"Could not select '{value}' from '{target}'. Tried {len(attempted_selectors)} selectors.",
+            attempted_selectors=attempted_selectors,
+            original_error=last_error
+        )
     
     async def _check(self, target: str):
         """Check a checkbox or radio button."""
@@ -447,16 +544,26 @@ class TestExecutor:
             f'label:has-text("{target}") input[type="radio"]',
         ]
         
+        attempted_selectors = []
+        last_error = None
+        
         for selector in selectors:
+            attempted_selectors.append(selector)
             try:
                 element = await self.page.wait_for_selector(selector, timeout=self.config.browser.timeout)
                 await element.check()
-                logger.debug(f"Successfully checked: {target}")
+                logger.debug(f"Successfully checked '{target}' using selector: {selector}")
                 return
-            except Exception:
+            except Exception as e:
+                last_error = e
+                logger.debug(f"Selector '{selector}' failed: {str(e)[:100]}")
                 continue
         
-        raise ActionExecutionError(f"Could not check element: {target}")
+        raise ActionExecutionError(
+            f"Could not check element: '{target}'. Tried {len(attempted_selectors)} selectors.",
+            attempted_selectors=attempted_selectors,
+            original_error=last_error
+        )
     
     async def _uncheck(self, target: str):
         """Uncheck a checkbox."""
@@ -466,16 +573,26 @@ class TestExecutor:
             f'label:has-text("{target}") input[type="checkbox"]',
         ]
         
+        attempted_selectors = []
+        last_error = None
+        
         for selector in selectors:
+            attempted_selectors.append(selector)
             try:
                 element = await self.page.wait_for_selector(selector, timeout=self.config.browser.timeout)
                 await element.uncheck()
-                logger.debug(f"Successfully unchecked: {target}")
+                logger.debug(f"Successfully unchecked '{target}' using selector: {selector}")
                 return
-            except Exception:
+            except Exception as e:
+                last_error = e
+                logger.debug(f"Selector '{selector}' failed: {str(e)[:100]}")
                 continue
         
-        raise ActionExecutionError(f"Could not uncheck element: {target}")
+        raise ActionExecutionError(
+            f"Could not uncheck element: '{target}'. Tried {len(attempted_selectors)} selectors.",
+            attempted_selectors=attempted_selectors,
+            original_error=last_error
+        )
     
     async def _navigate(self, target: str):
         """Navigate to a URL or page."""
@@ -500,10 +617,20 @@ class TestExecutor:
         try:
             # Try to parse as milliseconds
             wait_ms = int(target)
+            if wait_ms < 0:
+                raise ValueError(f"Wait time cannot be negative: {wait_ms}")
+            logger.debug(f"Waiting {wait_ms}ms")
             await asyncio.sleep(wait_ms / 1000.0)
         except ValueError:
             # Try to wait for selector
-            await self.page.wait_for_selector(target, timeout=self.config.browser.timeout)
+            logger.debug(f"Waiting for selector: {target}")
+            try:
+                await self.page.wait_for_selector(target, timeout=self.config.browser.timeout)
+            except PlaywrightTimeoutError:
+                raise ActionExecutionError(
+                    f"Timeout waiting for selector: '{target}'",
+                    attempted_selectors=[target]
+                )
     
     async def _scroll(self, target: str):
         """Scroll to an element or position."""
@@ -516,8 +643,18 @@ class TestExecutor:
             try:
                 element = await self.page.wait_for_selector(target, timeout=self.config.browser.timeout)
                 await element.scroll_into_view_if_needed()
-            except Exception:
-                raise ActionExecutionError(f"Could not scroll to: {target}")
+                logger.debug(f"Successfully scrolled to element: {target}")
+            except PlaywrightTimeoutError:
+                raise ActionExecutionError(
+                    f"Could not scroll to element: '{target}'. Element not found.",
+                    attempted_selectors=[target]
+                )
+            except Exception as e:
+                raise ActionExecutionError(
+                    f"Could not scroll to element: '{target}'. Error: {str(e)}",
+                    attempted_selectors=[target],
+                    original_error=e
+                )
     
     async def _verify_with_ai(
         self,
