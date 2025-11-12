@@ -33,7 +33,10 @@ class RequirementParser:
     
     # Patterns for extracting different types of content
     STEP_PATTERN = re.compile(r'^(\d+)\.\s*(.+?)(?=\n\d+\.|$)', re.MULTILINE | re.DOTALL)
-    GLOBAL_SECTION_PATTERN = re.compile(r'^For all pages:\s*\n(.*?)(?=\n\d+\.|$)', re.MULTILINE | re.DOTALL)
+    GLOBAL_SECTION_PATTERN = re.compile(
+        r'^For all pages:\s*\n((?:[-*•]\s*[^\n]+\n?)+)',
+        re.MULTILINE | re.IGNORECASE
+    )
     
     # Verification patterns
     VERIFICATION_PATTERNS = [
@@ -105,15 +108,37 @@ class RequirementParser:
             
         Returns:
             TestSuite object with parsed steps and requirements
+            
+        Raises:
+            FileNotFoundError: If file doesn't exist
+            ValueError: If parsed suite is invalid
         """
         file_path = Path(filepath)
         if not file_path.exists():
-            raise FileNotFoundError(f"Requirement file not found: {filepath}")
+            resolved_path = file_path.resolve()
+            raise FileNotFoundError(
+                f"Requirement file not found: {filepath}\n"
+                f"Current directory: {Path.cwd()}\n"
+                f"Resolved path: {resolved_path}"
+            )
         
         logger.info(f"Parsing requirement file: {filepath}")
         
         # Read file content
-        content = self._read_file(file_path)
+        try:
+            # Check file size (warn if very large)
+            file_size = file_path.stat().st_size
+            if file_size > 1_000_000:  # 1MB
+                logger.warning(f"Requirement file '{filepath}' is large ({file_size:,} bytes). Parsing may be slow.")
+            
+            content = self._read_file(file_path)
+        except PermissionError as e:
+            raise IOError(f"Permission denied reading requirement file '{filepath}': {e}") from e
+        except Exception as e:
+            raise IOError(f"Failed to read requirement file '{filepath}': {e}") from e
+        
+        if not content or len(content.strip()) == 0:
+            raise ValueError(f"Requirement file '{filepath}' is empty")
         
         # Extract global requirements
         global_requirements = self._extract_global_requirements(content)
@@ -121,11 +146,34 @@ class RequirementParser:
         # Extract test steps
         steps = self._extract_steps(content)
         
+        if not steps:
+            raise ValueError(
+                f"No test steps found in file: {filepath}\n"
+                f"File contains {len(content)} characters.\n"
+                f"Expected numbered steps (1., 2., 3., etc.)"
+            )
+        
         # Parse each step
         test_steps = []
         for step_num, step_text in steps:
-            test_step = self._parse_step(step_num, step_text, global_requirements)
-            test_steps.append(test_step)
+            try:
+                # Find line number for better error messages
+                # Find the first occurrence of this step number
+                step_marker = f"{step_num}."
+                step_pos = content.find(step_marker)
+                if step_pos >= 0:
+                    line_number = content[:step_pos].count('\n') + 1
+                else:
+                    line_number = None
+                
+                test_step = self._parse_step(step_num, step_text, global_requirements)
+                test_steps.append(test_step)
+            except Exception as e:
+                line_info = f" (around line {line_number})" if line_number else ""
+                logger.error(f"Error parsing step {step_num}{line_info}: {e}", exc_info=True)
+                raise ValueError(
+                    f"Failed to parse step {step_num} in '{filepath}'{line_info}: {e}"
+                ) from e
         
         # Create test suite
         suite_name = file_path.stem.replace(" Requirements", "").replace("_", " ").title()
@@ -134,20 +182,105 @@ class RequirementParser:
             name=suite_name,
             global_requirements=global_requirements,
             steps=test_steps,
+            source_file=str(file_path.absolute()),
         )
+        
+        # Validate parsed suite
+        self._validate_suite(test_suite)
         
         logger.info(f"Parsed {len(test_steps)} steps from {filepath}")
         return test_suite
     
+    def _validate_suite(self, suite: TestSuite):
+        """
+        Validate parsed test suite.
+        
+        Args:
+            suite: TestSuite to validate
+            
+        Raises:
+            ValueError: If suite is invalid
+        """
+        if not suite.steps:
+            raise ValueError(f"Test suite '{suite.name}' has no steps")
+        
+        # Check for duplicate step numbers
+        step_numbers = [step.step_number for step in suite.steps]
+        if len(step_numbers) != len(set(step_numbers)):
+            duplicates = [n for n in step_numbers if step_numbers.count(n) > 1]
+            raise ValueError(f"Duplicate step numbers found in '{suite.name}': {duplicates}")
+        
+        # Check for sequential step numbers (warn if gaps)
+        sorted_numbers = sorted(step_numbers)
+        expected = list(range(sorted_numbers[0], sorted_numbers[-1] + 1))
+        missing = [n for n in expected if n not in sorted_numbers]
+        if missing:
+            logger.warning(f"Test suite '{suite.name}' has missing step numbers: {missing}")
+        
+        # Validate each step
+        for step in suite.steps:
+            if not step.description or len(step.description.strip()) < 3:
+                logger.warning(
+                    f"Step {step.step_number} in '{suite.name}' has very short description: "
+                    f"'{step.description}'"
+                )
+            
+            # Warn if step has no actions or verifications
+            if not step.actions and not step.verifications:
+                logger.warning(
+                    f"Step {step.step_number} in '{suite.name}' has no actions or verifications. "
+                    f"Description: '{step.description[:50]}...'"
+                )
+            
+            # Validate actions
+            for action in step.actions:
+                if not action.target or len(action.target.strip()) < 1:
+                    logger.warning(
+                        f"Step {step.step_number} in '{suite.name}' has action with empty target: "
+                        f"{action.type}"
+                    )
+                if action.type in [ActionType.TYPE, ActionType.FILL, ActionType.SELECT]:
+                    if not action.value or len(action.value.strip()) < 1:
+                        logger.warning(
+                            f"Step {step.step_number} in '{suite.name}' has {action.type} action "
+                            f"with empty value on target '{action.target}'"
+                        )
+    
     def _read_file(self, filepath: Path) -> str:
-        """Read file content with proper encoding handling."""
+        """
+        Read file content with proper encoding handling.
+        
+        Args:
+            filepath: Path to file to read
+            
+        Returns:
+            File content as string
+            
+        Raises:
+            IOError: If file cannot be read
+        """
+        encodings = ['utf-8', 'latin-1', 'cp1252', 'iso-8859-1']
+        
+        for encoding in encodings:
+            try:
+                with open(filepath, 'r', encoding=encoding) as f:
+                    content = f.read()
+                    logger.debug(f"Successfully read file '{filepath}' with encoding: {encoding}")
+                    return content
+            except UnicodeDecodeError:
+                continue
+            except Exception as e:
+                if encoding == encodings[0]:  # Only raise on first encoding attempt
+                    raise IOError(f"Failed to read file '{filepath}': {e}") from e
+                continue
+        
+        # If all encodings fail, try with error handling
         try:
-            with open(filepath, 'r', encoding='utf-8') as f:
+            with open(filepath, 'r', encoding='utf-8', errors='replace') as f:
+                logger.warning(f"Reading file '{filepath}' with UTF-8 encoding and error replacement")
                 return f.read()
-        except UnicodeDecodeError:
-            # Fallback to latin-1 if UTF-8 fails
-            with open(filepath, 'r', encoding='latin-1') as f:
-                return f.read()
+        except Exception as e:
+            raise IOError(f"Failed to read file '{filepath}' with any encoding: {e}") from e
     
     def _extract_global_requirements(self, content: str) -> List[Verification]:
         """
@@ -166,7 +299,7 @@ class RequirementParser:
         if match:
             global_section = match.group(1)
             
-            # Extract bullet points
+            # Extract bullet points - process each line separately
             lines = global_section.split('\n')
             for line in lines:
                 line = line.strip()
@@ -175,10 +308,34 @@ class RequirementParser:
                 
                 # Remove bullet markers
                 line = re.sub(r'^[-*•]\s*', '', line)
+                if not line:
+                    continue
                 
-                # Extract verifications
+                # Try to extract verifications first (handles "Make sure that...")
                 verifications = self._extract_verifications(line)
-                global_reqs.extend(verifications)
+                if verifications:
+                    global_reqs.extend(verifications)
+                else:
+                    # If no verification pattern matches, check if line contains requirement keywords
+                    # This handles lines like "Every page must have..." or "All buttons need..."
+                    line_lower = line.lower()
+                    if any(keyword in line_lower for keyword in [
+                        'make sure', 'verify', 'check', 'confirm', 'ensure',
+                        'must', 'need', 'should', 'require', 'has to'
+                    ]):
+                        # Determine severity based on keywords
+                        severity = Severity.MAJOR
+                        if any(word in line_lower for word in ['critical', 'must', 'required', 'has to']):
+                            severity = Severity.CRITICAL
+                        elif any(word in line_lower for word in ['should', 'preferably']):
+                            severity = Severity.MINOR
+                        
+                        # Use the full line as verification text
+                        global_reqs.append(Verification(
+                            text=line,
+                            severity=severity,
+                            description=line,
+                        ))
         
         logger.debug(f"Extracted {len(global_reqs)} global requirements")
         return global_reqs
@@ -283,6 +440,7 @@ class RequirementParser:
             List of Verification objects
         """
         verifications = []
+        seen_texts = set()  # Track seen verification texts to avoid duplicates
         
         # Split into sentences/lines
         sentences = self._split_into_sentences(text)
@@ -298,11 +456,22 @@ class RequirementParser:
                 if match:
                     verification_text = match.group(1).strip()
                     
+                    # Skip if verification text is too short or empty
+                    if not verification_text or len(verification_text) < 3:
+                        continue
+                    
+                    # Skip if already seen (case-insensitive)
+                    if verification_text.lower() in seen_texts:
+                        continue
+                    
+                    seen_texts.add(verification_text.lower())
+                    
                     # Determine severity (default to MAJOR)
                     severity = Severity.MAJOR
-                    if any(word in sentence.lower() for word in ['critical', 'must', 'required']):
+                    sentence_lower = sentence.lower()
+                    if any(word in sentence_lower for word in ['critical', 'must', 'required', 'has to']):
                         severity = Severity.CRITICAL
-                    elif any(word in sentence.lower() for word in ['should', 'preferably']):
+                    elif any(word in sentence_lower for word in ['should', 'preferably', 'nice to have']):
                         severity = Severity.MINOR
                     
                     verification = Verification(
@@ -311,7 +480,7 @@ class RequirementParser:
                         description=sentence,
                     )
                     verifications.append(verification)
-                    break
+                    break  # Move to next sentence after first match
         
         return verifications
     
@@ -326,6 +495,7 @@ class RequirementParser:
             List of Action objects
         """
         actions = []
+        seen_actions = set()  # Track seen actions to avoid duplicates
         
         # Split into sentences/lines
         sentences = self._split_into_sentences(text)
@@ -335,8 +505,15 @@ class RequirementParser:
             if not sentence:
                 continue
             
+            # Track which action types we've already extracted from this sentence
+            extracted_types = set()
+            
             # Check each action type pattern
             for action_type, patterns in self.ACTION_PATTERNS.items():
+                # Skip if already extracted this type from sentence
+                if action_type in extracted_types:
+                    continue
+                
                 for pattern in patterns:
                     match = pattern.search(sentence)
                     if match:
@@ -354,10 +531,28 @@ class RequirementParser:
                                     continue  # Skip if we can't infer target
                             else:
                                 continue
+                            
+                            # Validate value is not empty
+                            if not value or len(value) < 1:
+                                logger.debug(f"Skipping action with empty value: {action_type} on {target}")
+                                continue
                         else:
                             # Actions without values
                             target = match.group(1).strip()
                             value = None
+                        
+                        # Validate target is not empty
+                        if not target or len(target) < 1:
+                            logger.debug(f"Skipping action with empty target: {action_type}")
+                            continue
+                        
+                        # Create action key for deduplication
+                        action_key = (action_type, target.lower(), value.lower() if value else None)
+                        if action_key in seen_actions:
+                            logger.debug(f"Skipping duplicate action: {action_type} on {target}")
+                            continue  # Skip duplicate
+                        
+                        seen_actions.add(action_key)
                         
                         action = Action(
                             type=action_type,
@@ -366,7 +561,8 @@ class RequirementParser:
                             description=sentence,
                         )
                         actions.append(action)
-                        break
+                        extracted_types.add(action_type)
+                        break  # Move to next action type after first match
         
         return actions
     
@@ -435,14 +631,46 @@ class RequirementParser:
         return elements
     
     def _split_into_sentences(self, text: str) -> List[str]:
-        """Split text into sentences, handling various formats."""
-        # Split by periods, exclamation marks, and newlines
-        sentences = re.split(r'[.!?]\s+|\n+', text)
+        """
+        Split text into sentences, handling various formats.
+        
+        Handles:
+        - Standard sentence endings (. ! ?)
+        - Newlines
+        - Abbreviations (e.g., "Dr. Smith")
+        - Decimal numbers (e.g., "Version 1.2.3")
+        - URLs (basic handling)
+        """
+        # First, protect common abbreviations and patterns
+        # Replace common abbreviations temporarily
+        protected = text
+        replacements = {}
+        
+        # Protect URLs (basic)
+        url_pattern = r'https?://[^\s]+'
+        urls = re.findall(url_pattern, protected)
+        for i, url in enumerate(urls):
+            placeholder = f"__URL_{i}__"
+            replacements[placeholder] = url
+            protected = protected.replace(url, placeholder)
+        
+        # Split by periods, exclamation marks, question marks, and newlines
+        # Use lookbehind to avoid splitting on abbreviations
+        sentences = re.split(
+            r'(?<!\w\.\w.)(?<![A-Z][a-z]\.)(?<=[.!?])\s+|(?<!\w\.\w.)(?<![A-Z][a-z]\.)(?<=[.!?])\n+|\n+',
+            protected
+        )
+        
+        # Restore URLs
+        for placeholder, url in replacements.items():
+            for i, sentence in enumerate(sentences):
+                sentences[i] = sentence.replace(placeholder, url)
         
         # Clean up sentences
         cleaned = []
         for sentence in sentences:
             sentence = sentence.strip()
+            # Filter out very short sentences and empty ones
             if sentence and len(sentence) > 3:
                 cleaned.append(sentence)
         
