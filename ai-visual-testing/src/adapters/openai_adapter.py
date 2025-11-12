@@ -152,13 +152,18 @@ class OpenAIAdapter(AIAdapter):
             # Extract response content
             content = response.choices[0].message.content or ""
             
-            # Extract usage information
+            # Validate response content
+            if not content or len(content.strip()) == 0:
+                logger.warning("OpenAI returned empty response content")
+                content = ""  # Ensure non-None value
+            
+            # Extract usage information (standardized format)
             usage = None
             if response.usage:
                 usage = {
-                    "prompt_tokens": response.usage.prompt_tokens,
-                    "completion_tokens": response.usage.completion_tokens,
-                    "total_tokens": response.usage.total_tokens,
+                    "input_tokens": getattr(response.usage, 'prompt_tokens', 0),
+                    "output_tokens": getattr(response.usage, 'completion_tokens', 0),
+                    "total_tokens": getattr(response.usage, 'total_tokens', 0),
                 }
             
             duration_ms = int((time.time() - start_time) * 1000)
@@ -274,13 +279,29 @@ class OpenAIAdapter(AIAdapter):
             
             # Parse JSON response
             content = response.choices[0].message.content or "{}"
+            
+            # Validate response content
+            if not content or len(content.strip()) == 0:
+                raise ValueError("OpenAI returned empty response for verification")
+            
             result_data = self._parse_json_response(content)
             
-            # Extract verification result
-            passed = result_data.get("passed", False)
+            # Validate response structure
+            if not isinstance(result_data, dict):
+                raise ValueError(f"Expected dict from OpenAI, got {type(result_data)}")
+            
+            # Extract verification result with validation
+            passed = bool(result_data.get("passed", False))
             confidence = float(result_data.get("confidence", 0.0))
-            reasoning = result_data.get("reasoning", "")
+            # Clamp confidence to valid range
+            confidence = max(0.0, min(100.0, confidence))
+            reasoning = str(result_data.get("reasoning", "")).strip()
             issues_data = result_data.get("issues", [])
+            
+            # Validate issues is a list
+            if not isinstance(issues_data, list):
+                logger.warning(f"Expected list for issues, got {type(issues_data)}, using empty list")
+                issues_data = []
             
             # Convert issues to Issue objects
             issues = []
@@ -404,7 +425,19 @@ Example: {{"Submit button": true, "Login form": false}}"""
             
             # Parse JSON response
             content = response.choices[0].message.content or "{}"
+            
+            # Validate response content
+            if not content or len(content.strip()) == 0:
+                logger.warning("OpenAI returned empty response for element extraction")
+                # Return all False if no response
+                return {desc: False for desc in element_descriptions}
+            
             result_data = self._parse_json_response(content)
+            
+            # Validate response structure
+            if not isinstance(result_data, dict):
+                logger.warning(f"Expected dict from OpenAI, got {type(result_data)}, returning all False")
+                return {desc: False for desc in element_descriptions}
             
             # Convert to dictionary with boolean values
             result = {}

@@ -136,13 +136,18 @@ class GeminiAdapter(AIAdapter):
             if response.text:
                 content = response.text
             
-            # Extract usage information
+            # Validate response content
+            if not content or len(content.strip()) == 0:
+                logger.warning("Gemini returned empty response content")
+                content = ""  # Ensure non-None value
+            
+            # Extract usage information (standardized format)
             usage = None
-            if hasattr(response, 'usage_metadata'):
+            if hasattr(response, 'usage_metadata') and response.usage_metadata:
                 usage = {
-                    "prompt_tokens": response.usage_metadata.prompt_token_count,
-                    "completion_tokens": response.usage_metadata.candidates_token_count,
-                    "total_tokens": response.usage_metadata.total_token_count,
+                    "input_tokens": getattr(response.usage_metadata, 'prompt_token_count', 0),
+                    "output_tokens": getattr(response.usage_metadata, 'candidates_token_count', 0),
+                    "total_tokens": getattr(response.usage_metadata, 'total_token_count', 0),
                 }
             
             duration_ms = int((time.time() - start_time) * 1000)
@@ -156,7 +161,15 @@ class GeminiAdapter(AIAdapter):
             
         except Exception as e:
             # Gemini doesn't have specific error types, so we handle generically
+            error_type = type(e).__name__
             error_str = str(e).lower()
+            
+            # Log original exception for debugging
+            logger.debug(
+                f"Gemini API error in analyze_page: {error_type}: {e}",
+                exc_info=True
+            )
+            
             if "rate limit" in error_str or "quota" in error_str:
                 raise AIAPIError(
                     f"Gemini rate limit exceeded: {e}",
@@ -166,7 +179,7 @@ class GeminiAdapter(AIAdapter):
                 raise AITimeoutError(f"Gemini request timed out: {e}") from e
             else:
                 raise AIAPIError(
-                    f"Gemini API error: {e}",
+                    f"Gemini API error ({error_type}): {e}",
                     status_code=500,
                 ) from e
     
@@ -216,14 +229,29 @@ class GeminiAdapter(AIAdapter):
             if response.text:
                 content = response.text
             
+            # Validate response content
+            if not content or len(content.strip()) == 0:
+                raise ValueError("Gemini returned empty response for verification")
+            
             # Parse JSON response
             result_data = self._parse_json_response(content)
             
-            # Extract verification result
-            passed = result_data.get("passed", False)
+            # Validate response structure
+            if not isinstance(result_data, dict):
+                raise ValueError(f"Expected dict from Gemini, got {type(result_data)}")
+            
+            # Extract verification result with validation
+            passed = bool(result_data.get("passed", False))
             confidence = float(result_data.get("confidence", 0.0))
-            reasoning = result_data.get("reasoning", "")
+            # Clamp confidence to valid range
+            confidence = max(0.0, min(100.0, confidence))
+            reasoning = str(result_data.get("reasoning", "")).strip()
             issues_data = result_data.get("issues", [])
+            
+            # Validate issues is a list
+            if not isinstance(issues_data, list):
+                logger.warning(f"Expected list for issues, got {type(issues_data)}, using empty list")
+                issues_data = []
             
             # Convert issues to Issue objects
             issues = []
@@ -257,7 +285,15 @@ class GeminiAdapter(AIAdapter):
             )
             
         except Exception as e:
+            error_type = type(e).__name__
             error_str = str(e).lower()
+            
+            # Log original exception for debugging
+            logger.debug(
+                f"Gemini API error in verify_requirement: {error_type}: {e}",
+                exc_info=True
+            )
+            
             if "rate limit" in error_str or "quota" in error_str:
                 raise AIAPIError(
                     f"Gemini rate limit exceeded: {e}",
@@ -267,7 +303,7 @@ class GeminiAdapter(AIAdapter):
                 raise AITimeoutError(f"Gemini request timed out: {e}") from e
             else:
                 raise AIAPIError(
-                    f"Gemini API error: {e}",
+                    f"Gemini API error ({error_type}): {e}",
                     status_code=500,
                 ) from e
     
@@ -311,8 +347,19 @@ Example: {{"Submit button": true, "Login form": false}}"""
             if response.text:
                 content = response.text
             
+            # Validate response content
+            if not content or len(content.strip()) == 0:
+                logger.warning("Gemini returned empty response for element extraction")
+                # Return all False if no response
+                return {desc: False for desc in element_descriptions}
+            
             # Parse JSON response
             result_data = self._parse_json_response(content)
+            
+            # Validate response structure
+            if not isinstance(result_data, dict):
+                logger.warning(f"Expected dict from Gemini, got {type(result_data)}, returning all False")
+                return {desc: False for desc in element_descriptions}
             
             # Convert to dictionary with boolean values
             result = {}
@@ -333,7 +380,15 @@ Example: {{"Submit button": true, "Login form": false}}"""
             return result
             
         except Exception as e:
+            error_type = type(e).__name__
             error_str = str(e).lower()
+            
+            # Log original exception for debugging
+            logger.debug(
+                f"Gemini API error in verify_requirement: {error_type}: {e}",
+                exc_info=True
+            )
+            
             if "rate limit" in error_str or "quota" in error_str:
                 raise AIAPIError(
                     f"Gemini rate limit exceeded: {e}",
@@ -343,7 +398,7 @@ Example: {{"Submit button": true, "Login form": false}}"""
                 raise AITimeoutError(f"Gemini request timed out: {e}") from e
             else:
                 raise AIAPIError(
-                    f"Gemini API error: {e}",
+                    f"Gemini API error ({error_type}): {e}",
                     status_code=500,
                 ) from e
 

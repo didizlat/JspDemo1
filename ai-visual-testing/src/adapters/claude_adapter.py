@@ -152,12 +152,20 @@ class ClaudeAdapter(AIAdapter):
                     if hasattr(block, 'text'):
                         content += block.text
             
-            # Extract usage information
+            # Validate response content
+            if not content or len(content.strip()) == 0:
+                logger.warning("Claude returned empty response content")
+                content = ""  # Ensure non-None value
+            
+            # Extract usage information (standardized format)
             usage = None
-            if hasattr(response, 'usage'):
+            if hasattr(response, 'usage') and response.usage:
+                input_tokens = getattr(response.usage, 'input_tokens', 0)
+                output_tokens = getattr(response.usage, 'output_tokens', 0)
                 usage = {
-                    "input_tokens": response.usage.input_tokens,
-                    "output_tokens": response.usage.output_tokens,
+                    "input_tokens": input_tokens,
+                    "output_tokens": output_tokens,
+                    "total_tokens": input_tokens + output_tokens,
                 }
             
             duration_ms = int((time.time() - start_time) * 1000)
@@ -266,14 +274,29 @@ class ClaudeAdapter(AIAdapter):
                     if hasattr(block, 'text'):
                         content += block.text
             
+            # Validate response content
+            if not content or len(content.strip()) == 0:
+                raise ValueError("Claude returned empty response for verification")
+            
             # Parse JSON response
             result_data = self._parse_json_response(content)
             
-            # Extract verification result
-            passed = result_data.get("passed", False)
+            # Validate response structure
+            if not isinstance(result_data, dict):
+                raise ValueError(f"Expected dict from Claude, got {type(result_data)}")
+            
+            # Extract verification result with validation
+            passed = bool(result_data.get("passed", False))
             confidence = float(result_data.get("confidence", 0.0))
-            reasoning = result_data.get("reasoning", "")
+            # Clamp confidence to valid range
+            confidence = max(0.0, min(100.0, confidence))
+            reasoning = str(result_data.get("reasoning", "")).strip()
             issues_data = result_data.get("issues", [])
+            
+            # Validate issues is a list
+            if not isinstance(issues_data, list):
+                logger.warning(f"Expected list for issues, got {type(issues_data)}, using empty list")
+                issues_data = []
             
             # Convert issues to Issue objects
             issues = []
@@ -394,8 +417,19 @@ Example: {{"Submit button": true, "Login form": false}}"""
                     if hasattr(block, 'text'):
                         content += block.text
             
+            # Validate response content
+            if not content or len(content.strip()) == 0:
+                logger.warning("Claude returned empty response for element extraction")
+                # Return all False if no response
+                return {desc: False for desc in element_descriptions}
+            
             # Parse JSON response
             result_data = self._parse_json_response(content)
+            
+            # Validate response structure
+            if not isinstance(result_data, dict):
+                logger.warning(f"Expected dict from Claude, got {type(result_data)}, returning all False")
+                return {desc: False for desc in element_descriptions}
             
             # Convert to dictionary with boolean values
             result = {}
