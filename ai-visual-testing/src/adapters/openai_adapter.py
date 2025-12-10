@@ -77,6 +77,18 @@ class OpenAIAdapter(AIAdapter):
             max_retries=max_retries,
         )
         
+        # Validate model name
+        if not model or not isinstance(model, str) or len(model.strip()) == 0:
+            raise AIConfigurationError("Model name must be a non-empty string")
+        
+        # Validate temperature range
+        if temperature < 0.0 or temperature > 2.0:
+            raise AIConfigurationError(f"Temperature must be between 0.0 and 2.0, got {temperature}")
+        
+        # Validate max_tokens if provided
+        if max_tokens is not None and (max_tokens < 1 or max_tokens > 100000):
+            raise AIConfigurationError(f"max_tokens must be between 1 and 100000, got {max_tokens}")
+        
         # Get API key
         self.api_key = api_key or os.getenv(api_key_env)
         if not self.api_key:
@@ -84,10 +96,14 @@ class OpenAIAdapter(AIAdapter):
                 f"OpenAI API key not found. Set {api_key_env} environment variable or pass api_key parameter."
             )
         
+        # Validate API key format (basic check - must be non-empty string)
+        if not isinstance(self.api_key, str) or len(self.api_key.strip()) < 3:
+            raise AIConfigurationError("API key must be a non-empty string with at least 3 characters")
+        
         # Initialize OpenAI client
         self.client = AsyncOpenAI(api_key=self.api_key)
         
-        logger.info(f"Initialized OpenAIAdapter with model: {model}")
+        logger.info(f"Initialized OpenAIAdapter with model: {model}, temperature: {temperature}, max_tokens: {max_tokens}")
     
     @handle_ai_errors
     @retry_on_api_error(max_attempts=3)
@@ -113,6 +129,21 @@ class OpenAIAdapter(AIAdapter):
             AITimeoutError: If request times out
         """
         start_time = time.time()
+        
+        # Validate inputs
+        if not screenshot or len(screenshot) == 0:
+            raise ValueError("Screenshot must be non-empty bytes")
+        if not isinstance(html, str):
+            raise ValueError(f"HTML must be a string, got {type(html)}")
+        if not prompt or not isinstance(prompt, str) or len(prompt.strip()) == 0:
+            raise ValueError("Prompt must be a non-empty string")
+        
+        # Log request details (debug level)
+        logger.debug(
+            f"Analyzing page with OpenAI: model={self.model}, "
+            f"screenshot_size={len(screenshot)} bytes, html_length={len(html)} chars, "
+            f"prompt_length={len(prompt)} chars"
+        )
         
         try:
             # Encode screenshot to base64
@@ -142,12 +173,14 @@ class OpenAIAdapter(AIAdapter):
             ]
             
             # Make API call
+            logger.debug(f"Making OpenAI API call: model={self.model}, messages_count={len(messages)}")
             response = await self.client.chat.completions.create(
                 model=self.model,
                 messages=messages,
                 temperature=self.temperature,
                 max_tokens=self.max_tokens,
             )
+            logger.debug(f"OpenAI API call completed: response_id={getattr(response, 'id', 'unknown')}")
             
             # Extract response content
             content = response.choices[0].message.content or ""
@@ -168,6 +201,12 @@ class OpenAIAdapter(AIAdapter):
             
             duration_ms = int((time.time() - start_time) * 1000)
             
+            # Log response summary
+            logger.debug(
+                f"OpenAI analyze_page completed: duration={duration_ms}ms, "
+                f"content_length={len(content)}, usage={usage}"
+            )
+            
             return AIResponse(
                 content=content,
                 model=self.model,
@@ -186,6 +225,11 @@ class OpenAIAdapter(AIAdapter):
                     except ValueError:
                         pass
             
+            logger.warning(
+                f"OpenAI rate limit exceeded: {e}, retry_after={retry_after} seconds",
+                exc_info=True
+            )
+            
             raise AIAPIError(
                 f"OpenAI rate limit exceeded: {e}",
                 status_code=429,
@@ -193,21 +237,28 @@ class OpenAIAdapter(AIAdapter):
             ) from e
             
         except APITimeoutError as e:
+            logger.error(f"OpenAI request timed out: {e}", exc_info=True)
             raise AITimeoutError(f"OpenAI request timed out: {e}") from e
-            
+        
         except APIConnectionError as e:
+            logger.error(f"OpenAI connection error: {e}", exc_info=True)
             raise AIAPIError(
                 f"OpenAI connection error: {e}",
                 status_code=0,
             ) from e
-            
+        
         except APIError as e:
             status_code = 500
             if hasattr(e, 'status_code'):
                 status_code = e.status_code
             
+            logger.error(
+                f"OpenAI API error: status_code={status_code}, error={e}",
+                exc_info=True
+            )
+            
             raise AIAPIError(
-                f"OpenAI API error: {e}",
+                f"OpenAI API error (status {status_code}): {e}",
                 status_code=status_code,
             ) from e
     
@@ -230,6 +281,12 @@ class OpenAIAdapter(AIAdapter):
         """
         start_time = time.time()
         
+        # Validate inputs
+        if not requirement or not isinstance(requirement, str) or len(requirement.strip()) == 0:
+            raise ValueError("Requirement must be a non-empty string")
+        if not isinstance(evidence, dict):
+            raise ValueError(f"Evidence must be a dictionary, got {type(evidence)}")
+        
         screenshot = evidence.get("screenshot")
         html = evidence.get("html", "")
         url = evidence.get("url", "unknown")
@@ -237,6 +294,15 @@ class OpenAIAdapter(AIAdapter):
         
         if not screenshot:
             raise ValueError("Screenshot is required for verification")
+        if not isinstance(screenshot, bytes) or len(screenshot) == 0:
+            raise ValueError("Screenshot must be non-empty bytes")
+        
+        # Log request details (debug level)
+        logger.debug(
+            f"Verifying requirement with OpenAI: model={self.model}, "
+            f"requirement='{requirement[:50]}...', url={url}, "
+            f"screenshot_size={len(screenshot)} bytes"
+        )
         
         # Create verification prompt
         prompt = self._create_verification_prompt(requirement, evidence)
@@ -303,21 +369,37 @@ class OpenAIAdapter(AIAdapter):
                 logger.warning(f"Expected list for issues, got {type(issues_data)}, using empty list")
                 issues_data = []
             
-            # Convert issues to Issue objects
+            # Convert issues to Issue objects with validation
             issues = []
-            for issue_data in issues_data:
+            for i, issue_data in enumerate(issues_data):
+                if not isinstance(issue_data, dict):
+                    logger.warning(f"Issue {i} is not a dictionary, skipping")
+                    continue
+                
                 severity_str = issue_data.get("severity", "minor").lower()
                 try:
                     severity = Severity(severity_str)
                 except ValueError:
+                    logger.warning(f"Invalid severity '{severity_str}' for issue {i}, using MINOR")
                     severity = Severity.MINOR
+                
+                description = str(issue_data.get("description", "")).strip()
+                if not description:
+                    logger.warning(f"Issue {i} has empty description, skipping")
+                    continue
                 
                 issues.append(Issue(
                     severity=severity,
-                    description=issue_data.get("description", ""),
+                    description=description,
                 ))
             
             duration_ms = int((time.time() - start_time) * 1000)
+            
+            # Log verification result summary
+            logger.debug(
+                f"OpenAI verify_requirement completed: duration={duration_ms}ms, "
+                f"passed={passed}, confidence={confidence:.1f}%, issues_count={len(issues)}"
+            )
             
             return VerificationResult(
                 requirement=requirement,
@@ -351,21 +433,28 @@ class OpenAIAdapter(AIAdapter):
             ) from e
             
         except APITimeoutError as e:
+            logger.error(f"OpenAI request timed out: {e}", exc_info=True)
             raise AITimeoutError(f"OpenAI request timed out: {e}") from e
-            
+        
         except APIConnectionError as e:
+            logger.error(f"OpenAI connection error: {e}", exc_info=True)
             raise AIAPIError(
                 f"OpenAI connection error: {e}",
                 status_code=0,
             ) from e
-            
+        
         except APIError as e:
             status_code = 500
             if hasattr(e, 'status_code'):
                 status_code = e.status_code
             
+            logger.error(
+                f"OpenAI API error: status_code={status_code}, error={e}",
+                exc_info=True
+            )
+            
             raise AIAPIError(
-                f"OpenAI API error: {e}",
+                f"OpenAI API error (status {status_code}): {e}",
                 status_code=status_code,
             ) from e
     
@@ -386,11 +475,34 @@ class OpenAIAdapter(AIAdapter):
         Returns:
             Dictionary mapping element descriptions to boolean (exists/not exists)
         """
+        # Validate inputs
+        if not isinstance(html, str):
+            raise ValueError(f"HTML must be a string, got {type(html)}")
+        if not isinstance(element_descriptions, list):
+            raise ValueError(f"element_descriptions must be a list, got {type(element_descriptions)}")
         if not element_descriptions:
             return {}
         
+        # Validate each description
+        valid_descriptions = []
+        for i, desc in enumerate(element_descriptions):
+            if not isinstance(desc, str) or len(desc.strip()) == 0:
+                logger.warning(f"Element description {i} is invalid, skipping")
+                continue
+            valid_descriptions.append(desc.strip())
+        
+        if not valid_descriptions:
+            logger.warning("No valid element descriptions provided")
+            return {}
+        
+        # Log request details (debug level)
+        logger.debug(
+            f"Extracting elements with OpenAI: model={self.model}, "
+            f"html_length={len(html)} chars, elements_count={len(valid_descriptions)}"
+        )
+        
         # Create prompt for element extraction
-        descriptions_text = "\n".join(f"- {desc}" for desc in element_descriptions)
+        descriptions_text = "\n".join(f"- {desc}" for desc in valid_descriptions)
         prompt = f"""Analyze the following HTML content and determine which of these elements exist on the page:
 
 ELEMENTS TO FIND:
@@ -430,18 +542,18 @@ Example: {{"Submit button": true, "Login form": false}}"""
             if not content or len(content.strip()) == 0:
                 logger.warning("OpenAI returned empty response for element extraction")
                 # Return all False if no response
-                return {desc: False for desc in element_descriptions}
+                return {desc: False for desc in valid_descriptions}
             
             result_data = self._parse_json_response(content)
             
             # Validate response structure
             if not isinstance(result_data, dict):
                 logger.warning(f"Expected dict from OpenAI, got {type(result_data)}, returning all False")
-                return {desc: False for desc in element_descriptions}
+                return {desc: False for desc in valid_descriptions}
             
             # Convert to dictionary with boolean values
             result = {}
-            for desc in element_descriptions:
+            for desc in valid_descriptions:
                 # Try exact match first
                 if desc in result_data:
                     result[desc] = bool(result_data[desc])
@@ -456,6 +568,12 @@ Example: {{"Submit button": true, "Login form": false}}"""
                     if not found:
                         # Default to False if not found
                         result[desc] = False
+            
+            # Log extraction result summary
+            found_count = sum(1 for v in result.values() if v)
+            logger.debug(
+                f"OpenAI extract_elements completed: found={found_count}/{len(valid_descriptions)} elements"
+            )
             
             return result
             
@@ -476,21 +594,28 @@ Example: {{"Submit button": true, "Login form": false}}"""
             ) from e
             
         except APITimeoutError as e:
+            logger.error(f"OpenAI request timed out: {e}", exc_info=True)
             raise AITimeoutError(f"OpenAI request timed out: {e}") from e
-            
+        
         except APIConnectionError as e:
+            logger.error(f"OpenAI connection error: {e}", exc_info=True)
             raise AIAPIError(
                 f"OpenAI connection error: {e}",
                 status_code=0,
             ) from e
-            
+        
         except APIError as e:
             status_code = 500
             if hasattr(e, 'status_code'):
                 status_code = e.status_code
             
+            logger.error(
+                f"OpenAI API error: status_code={status_code}, error={e}",
+                exc_info=True
+            )
+            
             raise AIAPIError(
-                f"OpenAI API error: {e}",
+                f"OpenAI API error (status {status_code}): {e}",
                 status_code=status_code,
             ) from e
 
