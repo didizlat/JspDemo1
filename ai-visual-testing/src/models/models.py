@@ -5,10 +5,14 @@ This module defines all data structures used throughout the testing framework,
 including test suites, steps, verifications, actions, results, and verdicts.
 """
 
+import logging
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import List, Optional, Dict, Any
 from datetime import datetime
+from urllib.parse import urlparse
+
+logger = logging.getLogger(__name__)
 
 
 # ============================================================================
@@ -65,9 +69,23 @@ class Verification:
     
     def __post_init__(self):
         """Validate verification data."""
+        # Validate text
+        if not isinstance(self.text, str):
+            raise ValueError(f"Verification text must be a string, got {type(self.text)}")
         if not self.text or not self.text.strip():
             raise ValueError("Verification text cannot be empty")
-        if self.description is None:
+        self.text = self.text.strip()
+        
+        # Validate severity
+        if not isinstance(self.severity, Severity):
+            raise ValueError(f"Severity must be a Severity enum, got {type(self.severity)}")
+        
+        # Validate description
+        if self.description is not None:
+            if not isinstance(self.description, str):
+                raise ValueError(f"Description must be a string, got {type(self.description)}")
+            self.description = self.description.strip()
+        else:
             self.description = self.text
 
 
@@ -82,12 +100,42 @@ class Action:
     
     def __post_init__(self):
         """Validate action data."""
+        # Validate type
+        if not isinstance(self.type, ActionType):
+            raise ValueError(f"Action type must be an ActionType enum, got {type(self.type)}")
+        
+        # Validate target
+        if not isinstance(self.target, str):
+            raise ValueError(f"Action target must be a string, got {type(self.target)}")
         if not self.target or not self.target.strip():
             raise ValueError("Action target cannot be empty")
-        if self.type in [ActionType.TYPE, ActionType.FILL, ActionType.SELECT] and not self.value:
-            raise ValueError(f"Action type {self.type} requires a value")
+        self.target = self.target.strip()
+        
+        # Validate value for actions that require it
+        if self.type in [ActionType.TYPE, ActionType.FILL, ActionType.SELECT]:
+            if self.value is None:
+                raise ValueError(f"Action type {self.type.value} requires a value")
+            if not isinstance(self.value, str):
+                raise ValueError(f"Action value must be a string, got {type(self.value)}")
+            if not self.value.strip():
+                raise ValueError(f"Action value cannot be empty for type {self.type.value}")
+            self.value = self.value.strip()
+        
+        # Validate wait_after_ms
+        if not isinstance(self.wait_after_ms, int):
+            raise ValueError(f"wait_after_ms must be an integer, got {type(self.wait_after_ms)}")
+        if self.wait_after_ms < 0:
+            raise ValueError(f"wait_after_ms must be >= 0, got {self.wait_after_ms}")
+        if self.wait_after_ms > 60000:  # 60 seconds max
+            raise ValueError(f"wait_after_ms must be <= 60000ms (60 seconds), got {self.wait_after_ms}")
+        
+        # Set default description
         if self.description is None:
             self.description = f"{self.type.value} {self.target}"
+        elif not isinstance(self.description, str):
+            raise ValueError(f"Description must be a string, got {type(self.description)}")
+        else:
+            self.description = self.description.strip()
 
 
 @dataclass
@@ -101,8 +149,35 @@ class Issue:
     
     def __post_init__(self):
         """Validate issue data."""
+        # Validate severity
+        if not isinstance(self.severity, Severity):
+            raise ValueError(f"Severity must be a Severity enum, got {type(self.severity)}")
+        
+        # Validate description
+        if not isinstance(self.description, str):
+            raise ValueError(f"Issue description must be a string, got {type(self.description)}")
         if not self.description or not self.description.strip():
             raise ValueError("Issue description cannot be empty")
+        self.description = self.description.strip()
+        
+        # Validate step_number
+        if self.step_number is not None:
+            if not isinstance(self.step_number, int):
+                raise ValueError(f"step_number must be an integer, got {type(self.step_number)}")
+            if self.step_number < 1:
+                raise ValueError(f"step_number must be >= 1, got {self.step_number}")
+        
+        # Validate element
+        if self.element is not None:
+            if not isinstance(self.element, str):
+                raise ValueError(f"element must be a string, got {type(self.element)}")
+            self.element = self.element.strip()
+        
+        # Validate screenshot_path
+        if self.screenshot_path is not None:
+            if not isinstance(self.screenshot_path, str):
+                raise ValueError(f"screenshot_path must be a string, got {type(self.screenshot_path)}")
+            self.screenshot_path = self.screenshot_path.strip()
 
 
 @dataclass
@@ -118,10 +193,47 @@ class VerificationResult:
     
     def __post_init__(self):
         """Validate verification result."""
-        if not 0.0 <= self.confidence <= 100.0:
-            raise ValueError(f"Confidence must be between 0.0 and 100.0, got {self.confidence}")
+        # Validate requirement
+        if not isinstance(self.requirement, str):
+            raise ValueError(f"Requirement must be a string, got {type(self.requirement)}")
         if not self.requirement or not self.requirement.strip():
             raise ValueError("Requirement text cannot be empty")
+        self.requirement = self.requirement.strip()
+        
+        # Validate passed
+        if not isinstance(self.passed, bool):
+            raise ValueError(f"passed must be a boolean, got {type(self.passed)}")
+        
+        # Validate confidence
+        if not isinstance(self.confidence, (int, float)):
+            raise ValueError(f"Confidence must be a number, got {type(self.confidence)}")
+        if not 0.0 <= self.confidence <= 100.0:
+            raise ValueError(f"Confidence must be between 0.0 and 100.0, got {self.confidence}")
+        self.confidence = float(self.confidence)
+        
+        # Validate evidence
+        if not isinstance(self.evidence, dict):
+            raise ValueError(f"evidence must be a dictionary, got {type(self.evidence)}")
+        
+        # Validate issues
+        if not isinstance(self.issues, list):
+            raise ValueError(f"issues must be a list, got {type(self.issues)}")
+        for issue in self.issues:
+            if not isinstance(issue, Issue):
+                raise ValueError(f"All issues must be Issue instances, got {type(issue)}")
+        
+        # Validate ai_reasoning
+        if self.ai_reasoning is not None:
+            if not isinstance(self.ai_reasoning, str):
+                raise ValueError(f"ai_reasoning must be a string, got {type(self.ai_reasoning)}")
+            self.ai_reasoning = self.ai_reasoning.strip()
+        
+        # Validate duration_ms
+        if self.duration_ms is not None:
+            if not isinstance(self.duration_ms, int):
+                raise ValueError(f"duration_ms must be an integer, got {type(self.duration_ms)}")
+            if self.duration_ms < 0:
+                raise ValueError(f"duration_ms must be >= 0, got {self.duration_ms}")
 
 
 @dataclass
@@ -135,10 +247,43 @@ class PageState:
     
     def __post_init__(self):
         """Validate page state."""
-        if not self.url:
+        # Validate URL
+        if not isinstance(self.url, str):
+            raise ValueError(f"URL must be a string, got {type(self.url)}")
+        if not self.url or not self.url.strip():
             raise ValueError("URL cannot be empty")
+        self.url = self.url.strip()
+        
+        # Validate URL format
+        try:
+            parsed = urlparse(self.url)
+            if not parsed.scheme:
+                raise ValueError(f"URL must include a scheme (http:// or https://), got: {self.url}")
+            if parsed.scheme not in ["http", "https"]:
+                raise ValueError(f"URL scheme must be http or https, got: {parsed.scheme}")
+        except Exception as e:
+            if isinstance(e, ValueError):
+                raise
+            raise ValueError(f"Invalid URL format: {self.url}") from e
+        
+        # Validate title
+        if not isinstance(self.title, str):
+            raise ValueError(f"Title must be a string, got {type(self.title)}")
+        self.title = self.title.strip()
+        
+        # Validate screenshot
         if not isinstance(self.screenshot, bytes):
-            raise ValueError("Screenshot must be bytes")
+            raise ValueError(f"Screenshot must be bytes, got {type(self.screenshot)}")
+        if len(self.screenshot) == 0:
+            raise ValueError("Screenshot cannot be empty")
+        
+        # Validate HTML
+        if not isinstance(self.html, str):
+            raise ValueError(f"HTML must be a string, got {type(self.html)}")
+        
+        # Validate timestamp
+        if not isinstance(self.timestamp, datetime):
+            raise ValueError(f"timestamp must be a datetime, got {type(self.timestamp)}")
 
 
 @dataclass
@@ -153,10 +298,49 @@ class TestStep:
     
     def __post_init__(self):
         """Validate test step."""
+        # Validate step_number
+        if not isinstance(self.step_number, int):
+            raise ValueError(f"step_number must be an integer, got {type(self.step_number)}")
         if self.step_number < 1:
             raise ValueError(f"Step number must be >= 1, got {self.step_number}")
+        if self.step_number > 10000:
+            raise ValueError(f"Step number must be <= 10000, got {self.step_number}")
+        
+        # Validate description
+        if not isinstance(self.description, str):
+            raise ValueError(f"Description must be a string, got {type(self.description)}")
         if not self.description or not self.description.strip():
             raise ValueError("Step description cannot be empty")
+        self.description = self.description.strip()
+        
+        # Validate verifications
+        if not isinstance(self.verifications, list):
+            raise ValueError(f"verifications must be a list, got {type(self.verifications)}")
+        for verification in self.verifications:
+            if not isinstance(verification, Verification):
+                raise ValueError(f"All verifications must be Verification instances, got {type(verification)}")
+        
+        # Validate actions
+        if not isinstance(self.actions, list):
+            raise ValueError(f"actions must be a list, got {type(self.actions)}")
+        for action in self.actions:
+            if not isinstance(action, Action):
+                raise ValueError(f"All actions must be Action instances, got {type(action)}")
+        
+        # Validate expected_page
+        if self.expected_page is not None:
+            if not isinstance(self.expected_page, str):
+                raise ValueError(f"expected_page must be a string, got {type(self.expected_page)}")
+            self.expected_page = self.expected_page.strip()
+        
+        # Validate expected_elements
+        if not isinstance(self.expected_elements, list):
+            raise ValueError(f"expected_elements must be a list, got {type(self.expected_elements)}")
+        for element in self.expected_elements:
+            if not isinstance(element, str):
+                raise ValueError(f"All expected_elements must be strings, got {type(element)}")
+            if not element.strip():
+                raise ValueError("Expected element cannot be empty")
 
 
 @dataclass
@@ -174,10 +358,63 @@ class StepResult:
     
     def __post_init__(self):
         """Validate step result."""
+        # Validate step_number
+        if not isinstance(self.step_number, int):
+            raise ValueError(f"step_number must be an integer, got {type(self.step_number)}")
         if self.step_number < 1:
             raise ValueError(f"Step number must be >= 1, got {self.step_number}")
+        
+        # Validate description
+        if not isinstance(self.description, str):
+            raise ValueError(f"Description must be a string, got {type(self.description)}")
         if not self.description or not self.description.strip():
             raise ValueError("Step description cannot be empty")
+        self.description = self.description.strip()
+        
+        # Validate status
+        if not isinstance(self.status, StepStatus):
+            raise ValueError(f"status must be a StepStatus enum, got {type(self.status)}")
+        
+        # Validate verifications
+        if not isinstance(self.verifications, list):
+            raise ValueError(f"verifications must be a list, got {type(self.verifications)}")
+        for verification in self.verifications:
+            if not isinstance(verification, VerificationResult):
+                raise ValueError(
+                    f"All verifications must be VerificationResult instances, got {type(verification)}"
+                )
+        
+        # Validate screenshot
+        if self.screenshot is not None:
+            if not isinstance(self.screenshot, bytes):
+                raise ValueError(f"screenshot must be bytes, got {type(self.screenshot)}")
+            if len(self.screenshot) == 0:
+                raise ValueError("Screenshot cannot be empty")
+        
+        # Validate html_snapshot
+        if self.html_snapshot is not None:
+            if not isinstance(self.html_snapshot, str):
+                raise ValueError(f"html_snapshot must be a string, got {type(self.html_snapshot)}")
+        
+        # Validate issues
+        if not isinstance(self.issues, list):
+            raise ValueError(f"issues must be a list, got {type(self.issues)}")
+        for issue in self.issues:
+            if not isinstance(issue, Issue):
+                raise ValueError(f"All issues must be Issue instances, got {type(issue)}")
+        
+        # Validate duration_ms
+        if self.duration_ms is not None:
+            if not isinstance(self.duration_ms, int):
+                raise ValueError(f"duration_ms must be an integer, got {type(self.duration_ms)}")
+            if self.duration_ms < 0:
+                raise ValueError(f"duration_ms must be >= 0, got {self.duration_ms}")
+        
+        # Validate error_message
+        if self.error_message is not None:
+            if not isinstance(self.error_message, str):
+                raise ValueError(f"error_message must be a string, got {type(self.error_message)}")
+            self.error_message = self.error_message.strip()
 
 
 @dataclass
@@ -191,15 +428,58 @@ class TestSuite:
     
     def __post_init__(self):
         """Validate test suite."""
+        # Validate name
+        if not isinstance(self.name, str):
+            raise ValueError(f"name must be a string, got {type(self.name)}")
         if not self.name or not self.name.strip():
             raise ValueError("Test suite name cannot be empty")
+        self.name = self.name.strip()
+        
+        # Validate steps
+        if not isinstance(self.steps, list):
+            raise ValueError(f"steps must be a list, got {type(self.steps)}")
         if not self.steps:
             raise ValueError("Test suite must have at least one step")
         
-        # Validate step numbers are sequential
+        # Validate step instances
+        for step in self.steps:
+            if not isinstance(step, TestStep):
+                raise ValueError(f"All steps must be TestStep instances, got {type(step)}")
+        
+        # Validate step numbers are unique and sequential
         step_numbers = [step.step_number for step in self.steps]
-        if step_numbers != sorted(set(step_numbers)):
-            raise ValueError("Step numbers must be unique and sequential")
+        if len(step_numbers) != len(set(step_numbers)):
+            duplicates = [num for num in step_numbers if step_numbers.count(num) > 1]
+            raise ValueError(f"Step numbers must be unique. Duplicates found: {duplicates}")
+        
+        sorted_numbers = sorted(step_numbers)
+        if step_numbers != sorted_numbers:
+            raise ValueError(
+                f"Step numbers must be sequential starting from 1. "
+                f"Expected: {list(range(1, len(step_numbers) + 1))}, "
+                f"Got: {step_numbers}"
+            )
+        
+        # Validate global_requirements
+        if not isinstance(self.global_requirements, list):
+            raise ValueError(f"global_requirements must be a list, got {type(self.global_requirements)}")
+        for requirement in self.global_requirements:
+            if not isinstance(requirement, Verification):
+                raise ValueError(
+                    f"All global_requirements must be Verification instances, got {type(requirement)}"
+                )
+        
+        # Validate description
+        if self.description is not None:
+            if not isinstance(self.description, str):
+                raise ValueError(f"description must be a string, got {type(self.description)}")
+            self.description = self.description.strip()
+        
+        # Validate source_file
+        if self.source_file is not None:
+            if not isinstance(self.source_file, str):
+                raise ValueError(f"source_file must be a string, got {type(self.source_file)}")
+            self.source_file = self.source_file.strip()
 
 
 @dataclass
@@ -215,8 +495,60 @@ class TestResults:
     
     def __post_init__(self):
         """Validate test results."""
+        # Validate test_suite_name
+        if not isinstance(self.test_suite_name, str):
+            raise ValueError(f"test_suite_name must be a string, got {type(self.test_suite_name)}")
         if not self.test_suite_name or not self.test_suite_name.strip():
             raise ValueError("Test suite name cannot be empty")
+        self.test_suite_name = self.test_suite_name.strip()
+        
+        # Validate step_results
+        if not isinstance(self.step_results, list):
+            raise ValueError(f"step_results must be a list, got {type(self.step_results)}")
+        for step_result in self.step_results:
+            if not isinstance(step_result, StepResult):
+                raise ValueError(
+                    f"All step_results must be StepResult instances, got {type(step_result)}"
+                )
+        
+        # Validate verdict
+        if self.verdict is not None:
+            if not isinstance(self.verdict, Verdict):
+                raise ValueError(f"verdict must be a Verdict instance, got {type(self.verdict)}")
+        
+        # Validate execution_date
+        if not isinstance(self.execution_date, datetime):
+            raise ValueError(f"execution_date must be a datetime, got {type(self.execution_date)}")
+        
+        # Validate duration_ms
+        if self.duration_ms is not None:
+            if not isinstance(self.duration_ms, int):
+                raise ValueError(f"duration_ms must be an integer, got {type(self.duration_ms)}")
+            if self.duration_ms < 0:
+                raise ValueError(f"duration_ms must be >= 0, got {self.duration_ms}")
+        
+        # Validate ai_model
+        if self.ai_model is not None:
+            if not isinstance(self.ai_model, str):
+                raise ValueError(f"ai_model must be a string, got {type(self.ai_model)}")
+            self.ai_model = self.ai_model.strip()
+        
+        # Validate base_url
+        if self.base_url is not None:
+            if not isinstance(self.base_url, str):
+                raise ValueError(f"base_url must be a string, got {type(self.base_url)}")
+            self.base_url = self.base_url.strip()
+            # Validate URL format
+            try:
+                parsed = urlparse(self.base_url)
+                if not parsed.scheme:
+                    raise ValueError(f"base_url must include a scheme (http:// or https://), got: {self.base_url}")
+                if parsed.scheme not in ["http", "https"]:
+                    raise ValueError(f"base_url scheme must be http or https, got: {parsed.scheme}")
+            except Exception as e:
+                if isinstance(e, ValueError):
+                    raise
+                raise ValueError(f"Invalid base_url format: {self.base_url}") from e
     
     def count_failures(self, severity: Optional[Severity] = None) -> int:
         """Count failed verifications, optionally filtered by severity."""
@@ -271,6 +603,62 @@ class TestResults:
     def warning_steps(self) -> int:
         """Count steps with warnings."""
         return sum(1 for sr in self.step_results if sr.status == StepStatus.WARNING)
+    
+    def skipped_steps(self) -> int:
+        """Count skipped steps."""
+        return sum(1 for sr in self.step_results if sr.status == StepStatus.SKIPPED)
+    
+    def pending_steps(self) -> int:
+        """Count pending steps."""
+        return sum(1 for sr in self.step_results if sr.status == StepStatus.PENDING)
+    
+    def success_rate(self) -> float:
+        """
+        Calculate success rate as percentage of passed steps.
+        
+        Returns:
+            Success rate as float between 0.0 and 100.0
+        """
+        total = self.total_steps()
+        if total == 0:
+            return 0.0
+        return (self.passed_steps() / total) * 100.0
+    
+    def has_critical_issues(self) -> bool:
+        """Check if test results contain any critical issues."""
+        return self.count_issues(Severity.CRITICAL) > 0
+    
+    def has_major_issues(self) -> bool:
+        """Check if test results contain any major issues."""
+        return self.count_issues(Severity.MAJOR) > 0
+    
+    def get_all_issues(self) -> List[Issue]:
+        """
+        Get all issues from all step results and verifications.
+        
+        Returns:
+            List of all Issue instances
+        """
+        issues = []
+        for step_result in self.step_results:
+            # Add issues directly on step result
+            issues.extend(step_result.issues)
+            # Add issues from verifications
+            for verification in step_result.verifications:
+                issues.extend(verification.issues)
+        return issues
+    
+    def get_issues_by_severity(self, severity: Severity) -> List[Issue]:
+        """
+        Get all issues of a specific severity.
+        
+        Args:
+            severity: Severity level to filter by
+            
+        Returns:
+            List of Issue instances with the specified severity
+        """
+        return [issue for issue in self.get_all_issues() if issue.severity == severity]
 
 
 @dataclass
@@ -283,10 +671,27 @@ class Verdict:
     
     def __post_init__(self):
         """Validate verdict."""
+        # Validate decision
+        if not isinstance(self.decision, VerdictDecision):
+            raise ValueError(f"decision must be a VerdictDecision enum, got {type(self.decision)}")
+        
+        # Validate confidence
+        if not isinstance(self.confidence, (int, float)):
+            raise ValueError(f"Confidence must be a number, got {type(self.confidence)}")
         if not 0.0 <= self.confidence <= 100.0:
             raise ValueError(f"Confidence must be between 0.0 and 100.0, got {self.confidence}")
+        self.confidence = float(self.confidence)
+        
+        # Validate reasoning
+        if not isinstance(self.reasoning, str):
+            raise ValueError(f"reasoning must be a string, got {type(self.reasoning)}")
         if not self.reasoning or not self.reasoning.strip():
             raise ValueError("Verdict reasoning cannot be empty")
+        self.reasoning = self.reasoning.strip()
+        
+        # Validate timestamp
+        if not isinstance(self.timestamp, datetime):
+            raise ValueError(f"timestamp must be a datetime, got {type(self.timestamp)}")
     
     @property
     def is_pass(self) -> bool:
